@@ -1,0 +1,1922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unmatched Draft Scorer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@300;400;500;600&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0f14; --surface: #141720; --border: #252a38;
+    --accent: #c9a84c; --accent-dim: #7a6128;
+    --text: #e2e4ea; --muted: #6b7280;
+  }
+
+  html, body { min-height: 100vh; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; font-size: 15px; line-height: 1.5; }
+
+  header { padding: 1.75rem 2rem 1.25rem; border-bottom: 1px solid var(--border); text-align: center; }
+  header h1 { font-family: 'Cinzel', serif; font-size: clamp(1.3rem, 4vw, 2rem); font-weight: 700; color: var(--accent); letter-spacing: 0.04em; }
+  header p { color: var(--muted); font-size: 0.82rem; margin-top: 0.3rem; }
+
+  .nav-tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--bg); position: sticky; top: 0; z-index: 50; overflow-x: auto; }
+  .nav-tab { padding: 0.75rem 1.2rem; font-size: 0.83rem; cursor: pointer; color: var(--muted); border: none; background: transparent; font-family: 'Inter', sans-serif; border-bottom: 2px solid transparent; transition: color 0.15s, border-color 0.15s; white-space: nowrap; }
+  .nav-tab:hover { color: var(--text); }
+  .nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  main { max-width: 900px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .section-label { font-family: 'Cinzel', serif; font-size: 0.72rem; color: var(--accent); letter-spacing: 0.1em; margin-bottom: 0.55rem; text-transform: uppercase; }
+
+  /* Source tabs */
+  .source-tabs { display: flex; border-bottom: 1px solid var(--border); }
+  .source-tab { padding: 0.5rem 1rem; font-size: 0.82rem; cursor: pointer; color: var(--muted); border: 1px solid transparent; border-bottom: none; border-radius: 6px 6px 0 0; background: transparent; font-family: 'Inter', sans-serif; }
+  .source-tab.active { color: var(--text); background: var(--surface); border-color: var(--border); border-bottom-color: var(--surface); margin-bottom: -1px; z-index: 1; }
+  .source-panel { background: var(--surface); border: 1px solid var(--border); border-top: none; border-radius: 0 0 8px 8px; padding: 1.25rem; margin-bottom: 2rem; display: none; }
+  .source-panel.active { display: block; }
+
+  .upload-zone { border: 1.5px dashed var(--border); border-radius: 8px; padding: 1.5rem; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; position: relative; }
+  .upload-zone:hover, .upload-zone.dragover { border-color: var(--accent-dim); background: rgba(201,168,76,0.03); }
+  .upload-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .upload-zone .icon { font-size: 1.5rem; margin-bottom: 0.3rem; }
+  .upload-zone p { color: var(--muted); font-size: 0.82rem; }
+  .filename { margin-top: 0.5rem; color: var(--accent); font-size: 0.82rem; font-weight: 500; }
+  .url-hint { font-size: 0.8rem; color: var(--muted); margin-bottom: 0.75rem; line-height: 1.6; }
+  .url-hint ol { padding-left: 1.2rem; margin-top: 0.25rem; }
+  .url-row { display: flex; gap: 0.5rem; }
+
+  /* Inputs */
+  input[type="text"], input[type="url"], input[type="number"] {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); padding: 0.6rem 0.85rem; font-size: 0.875rem;
+    font-family: 'Inter', sans-serif; outline: none; transition: border-color 0.2s;
+  }
+  input:focus { border-color: var(--accent-dim); }
+  input::placeholder { color: var(--muted); }
+  input:disabled { opacity: 0.4; cursor: not-allowed; }
+  input[type="number"] { width: 90px; }
+
+  button {
+    background: var(--accent); color: #0d0f14; border: none; border-radius: 6px;
+    padding: 0.6rem 1.1rem; font-size: 0.875rem; font-weight: 600; cursor: pointer;
+    font-family: 'Inter', sans-serif; transition: opacity 0.15s; white-space: nowrap;
+  }
+  button:hover:not(:disabled) { opacity: 0.85; }
+  button:disabled { opacity: 0.3; cursor: not-allowed; }
+  button.ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); font-weight: 400; }
+  button.ghost:hover:not(:disabled) { border-color: var(--muted); color: var(--text); opacity: 1; }
+  button.ghost.active-btn { border-color: var(--accent-dim); color: var(--accent); }
+  button.danger { background: transparent; color: #e87d7d; border: 1px solid #4d1e1e; font-weight: 400; font-size: 0.8rem; padding: 0.35rem 0.65rem; }
+  button.danger:hover:not(:disabled) { background: rgba(125,58,58,0.15); opacity: 1; }
+  button.sm { padding: 0.4rem 0.8rem; font-size: 0.8rem; }
+
+  /* Autocomplete */
+  .autocomplete-wrap { position: relative; flex: 1; }
+  .autocomplete-list { position: absolute; top: calc(100%+4px); left: 0; right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; max-height: 220px; overflow-y: auto; z-index: 100; display: none; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+  .autocomplete-list.open { display: block; }
+  .autocomplete-item { padding: 0.5rem 0.9rem; cursor: pointer; font-size: 0.875rem; transition: background 0.1s; }
+  .autocomplete-item:hover, .autocomplete-item.active { background: var(--border); }
+
+  /* Hero tags */
+  .hero-input-row { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; }
+  .hero-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1rem; min-height: 1.5rem; }
+  .hero-tag { display: flex; align-items: center; gap: 0.35rem; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 0.25rem 0.35rem 0.25rem 0.65rem; font-size: 0.82rem; }
+  .hero-tag.mandatory-tag { border-color: #3a7d5c; }
+  .hero-tag.banned-tag { border-color: #7d3a3a; }
+  .hero-tag .remove { background: none; color: var(--muted); padding: 0; font-size: 1rem; line-height: 1; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border-radius: 3px; border: none; cursor: pointer; }
+  .hero-tag .remove:hover { color: var(--text); background: var(--border); }
+
+  .actions { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; align-items: center; }
+  .hero-count { font-size: 0.8rem; color: var(--muted); }
+
+  /* Criteria */
+  .criteria-list { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.75rem; }
+  .criteria-row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 0.5rem; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.65rem 0.75rem; }
+  .criteria-row-inner { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+  .criteria-label { font-size: 0.78rem; color: var(--muted); white-space: nowrap; }
+  .criteria-row input[type="number"] { width: 80px; }
+  .color-swatch { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--border); cursor: pointer; transition: border-color 0.15s; flex-shrink: 0; }
+  .color-swatch:hover { border-color: var(--accent-dim); }
+  .color-picker-popup { position: absolute; z-index: 200; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem; display: flex; flex-wrap: wrap; gap: 0.4rem; width: 160px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+  .color-option { width: 24px; height: 24px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: border-color 0.1s; }
+  .color-option:hover, .color-option.selected { border-color: white; }
+  .criteria-actions { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.75rem; }
+
+  /* Confidence modifier */
+  .modifier-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; }
+  .modifier-row { display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end; margin-top: 0.75rem; }
+  .modifier-field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .modifier-field label { font-size: 0.78rem; color: var(--muted); }
+
+  /* Linear scoring settings */
+  .linear-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; }
+  .linear-row { display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end; margin-top: 0.75rem; }
+  .linear-field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .linear-field label { font-size: 0.78rem; color: var(--muted); }
+
+  /* Generator form */
+  .gen-form { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem; display: flex; flex-direction: column; gap: 1rem; }
+  .gen-row { display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end; }
+  .gen-field { display: flex; flex-direction: column; gap: 0.35rem; }
+  .gen-field label { font-size: 0.78rem; color: var(--muted); }
+  .gen-sub-label { font-size: 0.78rem; color: var(--muted); margin-bottom: 0.4rem; }
+
+  /* Generator selector */
+  .gen-selector { display: flex; flex-direction: column; gap: 0.5rem; }
+  .gen-option { display: flex; align-items: flex-start; gap: 0.65rem; padding: 0.75rem 0.9rem; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+  .gen-option:hover { border-color: var(--accent-dim); background: rgba(201,168,76,0.03); }
+  .gen-option.selected { border-color: var(--accent-dim); background: rgba(201,168,76,0.06); }
+  .gen-option input[type="radio"] { margin-top: 0.2rem; accent-color: var(--accent); flex-shrink: 0; }
+  .gen-option-name { font-size: 0.88rem; font-weight: 500; color: var(--text); }
+  .gen-option-desc { font-size: 0.77rem; color: var(--muted); line-height: 1.4; margin-top: 0.1rem; }
+
+  /* Messages */
+  .msg { padding: 0.7rem 1rem; border-radius: 6px; font-size: 0.85rem; margin-bottom: 1rem; }
+  .msg.error   { background: rgba(125,58,58,0.2); border: 1px solid #7d3a3a; color: #f0a8a8; }
+  .msg.info    { background: rgba(58,74,106,0.2); border: 1px solid #3a4a6a; color: #a8b8e8; }
+  .msg.success { background: rgba(58,125,92,0.2); border: 1px solid #3a7d5c; color: #a8f0cb; }
+
+  /* Results */
+  .results-title { font-family: 'Cinzel', serif; font-size: 0.95rem; color: var(--accent); margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .view-toggle { display: flex; gap: 0.35rem; }
+  .view-btn { background: transparent; color: var(--muted); border: 1px solid var(--border); padding: 0.2rem 0.5rem; font-size: 0.75rem; border-radius: 4px; cursor: pointer; font-family: 'Inter', sans-serif; }
+  .view-btn:hover { color: var(--text); opacity: 1; }
+  .view-btn.active { border-color: var(--accent-dim); color: var(--accent); }
+
+  /* List view */
+  .result-card { display: grid; grid-template-columns: 2.2rem 1fr auto; align-items: start; gap: 0.75rem 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 0.9rem 1rem; margin-bottom: 0.5rem; transition: border-color 0.15s; }
+  .result-card:hover { border-color: var(--accent-dim); }
+  .result-card.first { border-color: var(--accent-dim); }
+  .result-rank { font-family: 'Cinzel', serif; color: var(--muted); font-size: 0.85rem; text-align: center; padding-top: 0.1rem; }
+  .result-rank.gold { color: var(--accent); }
+  .result-body { display: flex; flex-direction: column; gap: 0.4rem; }
+  .result-name { font-weight: 500; font-size: 0.95rem; }
+  .result-pills { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+  .pill { font-size: 0.7rem; padding: 0.15rem 0.5rem; border-radius: 3px; white-space: nowrap; }
+  .pill.skip { background: var(--border); color: var(--muted); }
+  .result-score { font-family: 'Cinzel', serif; font-size: 1.15rem; font-weight: 700; text-align: right; padding-top: 0.05rem; }
+  .result-score.pos { color: #7de8b0; }
+  .result-score.neg { color: #e87d7d; }
+  .result-score.zer { color: var(--muted); }
+
+  /* Grid view */
+  .results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.75rem; }
+  .grid-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 0.75rem; text-align: center; transition: border-color 0.15s; display: flex; flex-direction: column; align-items: center; gap: 0.4rem; }
+  .grid-card:hover { border-color: var(--accent-dim); }
+  .grid-card.first { border-color: var(--accent-dim); }
+  .grid-rank { font-family: 'Cinzel', serif; font-size: 0.75rem; color: var(--muted); }
+  .grid-rank.gold { color: var(--accent); }
+  .grid-name { font-size: 0.85rem; font-weight: 500; line-height: 1.3; }
+  .grid-score { font-family: 'Cinzel', serif; font-size: 1.3rem; font-weight: 700; }
+
+  /* Gen summary */
+  .gen-summary { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; display: flex; gap: 2rem; flex-wrap: wrap; }
+  .gen-stat { display: flex; flex-direction: column; gap: 0.2rem; }
+  .gen-stat-label { font-size: 0.75rem; color: var(--muted); }
+  .gen-stat-value { font-family: 'Cinzel', serif; font-size: 1rem; color: var(--accent); }
+  .gen-algorithm-label { font-size: 0.75rem; color: var(--muted); font-style: italic; margin-left: auto; align-self: center; }
+
+  .divider { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
+
+  .attribution { margin-top: 3rem; text-align: center; font-size: 0.75rem; color: var(--muted); }
+  .attribution a { color: var(--accent-dim); text-decoration: none; }
+  .attribution a:hover { color: var(--accent); }
+
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .legend { display: flex; gap: 0.75rem; flex-wrap: wrap; font-size: 0.75rem; color: var(--muted); margin-bottom: 1.25rem; }
+  .legend span { display: flex; align-items: center; gap: 0.35rem; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  .pill-modified { border: 1px solid #3a3a4a; }
+  .view-toggle { flex-wrap: wrap; }
+  .dist-bar { display: flex; flex-wrap: wrap; gap: 0.6rem 1.2rem; margin: 0.5rem 0 1rem; }
+  .dist-group { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+  .dist-tip { position: fixed; z-index: 300; background: #1a1e29; border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem 0.7rem; font-size: 0.75rem; white-space: pre; pointer-events: none; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+  .stats-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-bottom: 0.5rem; }
+  .stats-table th { text-align: left; color: var(--muted); font-weight: 400; padding: 0.3rem 0.6rem 0.3rem 0; border-bottom: 1px solid var(--border); }
+  .stats-table td { padding: 0.35rem 0.6rem 0.35rem 0; border-bottom: 1px solid var(--border); }
+  .gen-dot { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 0.4rem; vertical-align: middle; }
+  .tier-box-head { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem; }
+  .tier-row { display: flex; justify-content: space-between; gap: 0.75rem; font-size: 0.85rem; padding: 0.1rem 0; }
+  .cm-row { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.55rem 0.75rem; margin-bottom: 0.35rem; font-size: 0.85rem; }
+  .conf-warn { color: #f0c040; font-size: 0.72rem; margin-right: 0.25rem; cursor: help; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Unmatched Draft Scorer</h1>
+  <p>Load matchup data, score your roster, or generate a balanced random draft. Every score is visible and the maths can be changed.</p>
+</header>
+
+<div class="nav-tabs">
+  <button class="nav-tab active" data-tab="data">Data</button>
+  <button class="nav-tab" data-tab="criteria">Scoring</button>
+  <button class="nav-tab" data-tab="scorer">Draft Scorer</button>
+  <button class="nav-tab" data-tab="generator">Random Roster</button>
+  <button class="nav-tab" data-tab="matchups">Matchups</button>
+  <button class="nav-tab" data-tab="distribution">Distribution</button>
+</div>
+
+<main>
+
+  <!-- DATA -->
+  <div class="tab-panel active" id="panel-data">
+    <div id="autoDataMsg"></div>
+    <div class="section-label">Matchup Data Source</div>
+    <div class="source-tabs">
+      <button class="source-tab active" data-src="file">Upload File</button>
+      <button class="source-tab" data-src="url">Google Drive Link</button>
+    </div>
+    <div class="source-panel active" id="spanel-file">
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" accept=".csv" id="csvFile">
+        <div class="icon">⚔</div>
+        <p>Drop <strong>hero-matchups-unmatched.csv</strong> here, or tap to browse</p>
+        <div class="filename" id="fileName"></div>
+      </div>
+    </div>
+    <div class="source-panel" id="spanel-url">
+      <div class="url-hint">Share your CSV from Google Drive and paste the link:<ol><li>Find <strong>hero-matchups-unmatched.csv</strong> in Drive</li><li>Share → set to <em>Anyone with the link</em></li><li>Paste below and tap Load</li></ol><div style="margin-top:0.5rem;color:#f0c040">⚠ This only works when the page is opened as a downloaded file. In the hosted (claude.ai) version, use Upload File.</div></div>
+      <div class="url-row">
+        <input type="url" id="driveUrl" placeholder="https://drive.google.com/file/d/…" style="flex:1">
+        <button id="loadUrlBtn">Load</button>
+      </div>
+    </div>
+    <div id="dataMsg"></div>
+  </div>
+
+  <!-- CRITERIA -->
+  <div class="tab-panel" id="panel-criteria">
+    <div class="section-label">Scoring Tiers</div>
+    <p style="font-size:0.82rem;color:var(--muted);margin-bottom:1rem;">Change the maths and generate again to see what happens. Sale's tier scoring is used by Sale's generator, and by the Draft Scorer when it splits with Sale's scoring. Each tier defines a minimum win rate and the points awarded. Tiers are checked from top to bottom — the first one the win rate meets or exceeds wins. Anything below the lowest tier scores 0.</p>
+    <div class="criteria-list" id="criteriaList"></div>
+    <div class="criteria-actions">
+      <button class="ghost sm" id="addCriteriaBtn">+ Add Tier</button>
+      <button class="ghost sm" id="resetCriteriaBtn">Reset to Default</button>
+    </div>
+    <div class="divider"></div>
+    <div class="section-label">Confidence Modifier</div>
+    <div class="modifier-box">
+      <p style="font-size:0.82rem;color:var(--muted);">If a matchup has fewer than X games played, multiply the points scored by coefficient Y (0–1). Set Y=0 to ignore low-sample matchups entirely. Applies to tier scoring only.</p>
+      <div class="modifier-row">
+        <div class="modifier-field">
+          <label>Min games (X)</label>
+          <input type="number" id="confMinGames" value="5" min="1" max="100">
+        </div>
+        <div class="modifier-field" style="flex:1;min-width:200px">
+          <label>Coefficient (Y) — <span id="confCoeffLabel">0.00</span></label>
+          <div style="display:flex;align-items:center;gap:0.75rem">
+            <input type="range" id="confCoeffSlider" min="0" max="1" step="0.05" value="0" style="flex:1;accent-color:var(--accent);cursor:pointer">
+            <input type="number" id="confCoeff" value="0" min="0" max="1" step="0.05" style="width:70px">
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="section-label">Komarica's Linear Scoring</div>
+    <div class="linear-box">
+      <p style="font-size:0.82rem;color:var(--muted);">Used by Komarica's and the Fair-enough generator, by Pure random, MBMP and Land of Unknown to split their tiers, and by the Draft Scorer when it splits with Komarica's scoring. A matchup is worth (win rate − 50%) / A points, times games / (games + B).</p>
+      <div class="linear-row">
+        <div class="linear-field">
+          <label>A — win-rate % per point</label>
+          <input type="number" id="linearPPP" value="10" min="1" max="50" step="0.5">
+        </div>
+        <div class="linear-field">
+          <label>B — prior games</label>
+          <input type="number" id="linearPrior" value="5" min="0" max="50">
+        </div>
+        <div class="linear-field">
+          <label>Fair-enough: beat X% of drafts</label>
+          <input type="number" id="fairPercent" value="80" min="1" max="99">
+        </div>
+      </div>
+    </div>
+    <div class="section-label">MBMP &amp; Land of Unknown</div>
+    <div class="linear-box">
+      <p style="font-size:0.82rem;color:var(--muted);">MBMP (most balanced, most played): every matchup between 40% and 60% is worth log(1 + games played), times the bonus between 45% and 55%; the draft with the highest total wins. Land of Unknown: the draft with the fewest games played between its heroes wins.</p>
+      <div class="linear-row">
+        <div class="linear-field">
+          <label>MBMP core bonus</label>
+          <input type="number" id="mbmpCoreBonus" value="1.25" min="1" max="5" step="0.05">
+        </div>
+        <div class="linear-field">
+          <label>MBMP range (40–X%)</label>
+          <input type="number" id="mbmpRange" value="60" min="51" max="75">
+        </div>
+        <div class="linear-field">
+          <label>MBMP core (45–Y%)</label>
+          <input type="number" id="mbmpCore" value="55" min="51" max="65">
+        </div>
+      </div>
+    </div>
+    <div class="section-label">Drafts Each Generator Compares</div>
+    <div class="linear-box">
+      <div class="linear-row" style="margin-top:0">
+        <div class="linear-field"><label>Sale's</label><input type="number" id="salesAttempts" value="1000" min="1" max="100000"></div>
+        <div class="linear-field"><label>Komarica's</label><input type="number" id="komaricaAttempts" value="10" min="1" max="100000"></div>
+        <div class="linear-field"><label>Fair-enough (max)</label><input type="number" id="fairMaxAttempts" value="1000" min="1" max="100000"></div>
+        <div class="linear-field"><label>MBMP</label><input type="number" id="mbmpAttempts" value="200" min="1" max="100000"></div>
+        <div class="linear-field"><label>Land of Unknown</label><input type="number" id="unknownAttempts" value="200" min="1" max="100000"></div>
+      </div>
+      <div style="margin-top:0.75rem">
+        <button class="ghost sm" id="resetLinearBtn">Reset these to defaults</button>
+      </div>
+    </div>
+    <div id="criteriaMsg"></div>
+  </div>
+
+  <!-- SCORER -->
+  <div class="tab-panel" id="panel-scorer">
+    <div class="section-label">Fighters in this Draft</div>
+    <div class="hero-input-row">
+      <div class="autocomplete-wrap">
+        <input type="text" id="heroInput" placeholder="Type a hero name…" autocomplete="off" disabled style="width:100%">
+        <div class="autocomplete-list" id="heroAC"></div>
+      </div>
+      <button id="addBtn" disabled>Add</button>
+    </div>
+    <div class="hero-tags" id="heroTags"></div>
+    <div class="actions">
+      <span class="criteria-label">Split using</span>
+      <span class="view-toggle" id="scorerScoring">
+        <button class="view-btn active" data-scoring="tiers">Sale's scoring</button>
+        <button class="view-btn" data-scoring="linear">Komarica's scoring</button>
+      </span>
+      <span style="display:inline-flex;align-items:center;gap:0.4rem;margin-left:0.5rem"><span class="criteria-label">Tiers</span>
+      <input type="number" id="scorerTiers" value="2" min="1" max="6" style="width:64px"></span>
+    </div>
+    <div class="actions">
+      <button id="scoreBtn" disabled>Score Roster</button>
+      <button class="ghost" id="scoreAllBtn" disabled>Score All</button>
+      <button class="ghost" id="clearBtn">Clear All</button>
+      <span class="hero-count" id="heroCount"></span>
+    </div>
+    <div id="scorerMsg"></div>
+    <div id="scorerResults"></div>
+  </div>
+
+  <!-- GENERATOR -->
+  <div class="tab-panel" id="panel-generator">
+    <div class="section-label">Random Roster Generator</div>
+
+    <div class="gen-form">
+      <div class="gen-row">
+        <div class="gen-field">
+          <label>Number of heroes</label>
+          <input type="number" id="genCount" value="6" min="2" max="42">
+        </div>
+        <div class="gen-field">
+          <label>Split into tiers</label>
+          <input type="number" id="splitTiers" value="2" min="1" max="6">
+        </div>
+        <div class="gen-field" style="justify-content:flex-end;margin-left:auto">
+          <button id="genBtn" disabled>Generate</button>
+        </div>
+      </div>
+
+      <div class="divider" style="margin:0"></div>
+
+      <div>
+        <div class="section-label" style="margin-bottom:0.65rem">Generator Algorithm</div>
+        <div class="gen-selector" id="genSelector"></div>
+      </div>
+
+      <div class="divider" style="margin:0"></div>
+
+      <div>
+        <div class="gen-sub-label">Mandatory Heroes <span style="color:var(--muted);font-size:0.72rem">(must be included)</span></div>
+        <div class="hero-input-row">
+          <div class="autocomplete-wrap">
+            <input type="text" id="mandatoryInput" placeholder="Add mandatory hero…" autocomplete="off" disabled style="width:100%">
+            <div class="autocomplete-list" id="mandatoryAC"></div>
+          </div>
+          <button id="addMandatoryBtn" class="ghost sm" disabled>Add</button>
+        </div>
+        <div class="hero-tags" id="mandatoryTags"></div>
+      </div>
+
+      <div>
+        <div class="gen-sub-label">Banned Heroes <span style="color:var(--muted);font-size:0.72rem">(excluded from pool)</span></div>
+        <div class="hero-input-row">
+          <div class="autocomplete-wrap">
+            <input type="text" id="bannedInput" placeholder="Ban a hero…" autocomplete="off" disabled style="width:100%">
+            <div class="autocomplete-list" id="bannedAC"></div>
+          </div>
+          <button id="addBannedBtn" class="ghost sm" disabled>Ban</button>
+        </div>
+        <div class="hero-tags" id="bannedTags"></div>
+      </div>
+    </div>
+
+    <div id="generatorMsg"></div>
+    <div id="generatorResults"></div>
+  </div>
+
+  <!-- MATCHUPS -->
+  <div class="tab-panel" id="panel-matchups">
+    <div class="section-label">Custom Matchups</div>
+    <p style="font-size:0.82rem;color:var(--muted);margin-bottom:1rem;">Change a matchup's win rate or number of games, or add a matchup that is not in the data — type a new name to add a new hero. Custom matchups replace the loaded data. Generate or score again to see the effect. They are remembered in this browser.</p>
+    <div class="gen-form">
+      <div class="gen-row">
+        <div class="gen-field" style="flex:1;min-width:160px">
+          <label>Hero A</label>
+          <div class="autocomplete-wrap"><input type="text" id="cmA" placeholder="Type a hero…" autocomplete="off" style="width:100%"><div class="autocomplete-list" id="cmAAC"></div></div>
+        </div>
+        <div class="criteria-label" style="padding-bottom:0.65rem">vs</div>
+        <div class="gen-field" style="flex:1;min-width:160px">
+          <label>Hero B</label>
+          <div class="autocomplete-wrap"><input type="text" id="cmB" placeholder="Type a hero…" autocomplete="off" style="width:100%"><div class="autocomplete-list" id="cmBAC"></div></div>
+        </div>
+      </div>
+      <div class="gen-row">
+        <div class="gen-field"><label>Hero A win rate %</label><input type="number" id="cmWR" min="0" max="100" step="0.1"></div>
+        <div class="gen-field"><label>Games played</label><input type="number" id="cmGames" min="0" step="1"></div>
+        <div class="gen-field" style="flex-direction:row;gap:0.5rem;margin-left:auto">
+          <button class="ghost" id="cmLookUp">Look up</button>
+          <button id="cmSave">Save matchup</button>
+        </div>
+      </div>
+      <div id="cmInfo" style="font-size:0.8rem;color:var(--muted)"></div>
+    </div>
+    <div id="cmMsg"></div>
+    <div class="results-title"><span id="cmListTitle">Custom matchups (0)</span><button class="danger" id="cmRemoveAll">Remove all</button></div>
+    <div id="cmList"></div>
+  </div>
+
+  <!-- DISTRIBUTION -->
+  <div class="tab-panel" id="panel-distribution">
+    <div class="section-label">Generator Distribution</div>
+    <p style="font-size:0.82rem;color:var(--muted);margin-bottom:1rem;">Runs the selected generators many times and shows how often each hero ends up in the roster. Uses the bans and mandatory heroes from the Random Roster tab and the settings from the Scoring tab.</p>
+    <div class="gen-form">
+      <div>
+        <div class="gen-sub-label">Generators</div>
+        <div class="view-toggle" id="distGens" style="flex-wrap:wrap"></div>
+      </div>
+      <div class="gen-row">
+        <div class="gen-field"><label>Heroes per roster</label><input type="number" id="distCount" value="24" min="2" max="200"></div>
+        <div class="gen-field"><label>Rosters per generator</label><input type="number" id="distRuns" value="1000" min="10" max="100000"></div>
+        <div class="gen-field" style="flex-direction:row;gap:0.5rem;margin-left:auto">
+          <button class="ghost" id="distStop" disabled>Stop</button>
+          <button id="distRun">Run</button>
+        </div>
+      </div>
+      <div id="distStatus" style="font-size:0.8rem;color:var(--muted)"></div>
+    </div>
+    <div id="distMsg"></div>
+    <div id="distStats"></div>
+    <div id="distView" style="display:none">
+      <div class="dist-bar">
+        <div class="dist-group"><span class="criteria-label">Sort by</span><span class="view-toggle" id="distSort"></span></div>
+        <div class="dist-group" id="distSortGenWrap"><span class="criteria-label">Pick rate of</span><span class="view-toggle" id="distSortGen"></span></div>
+        <div class="dist-group"><span class="criteria-label">Order</span><span class="view-toggle" id="distOrder"></span></div>
+        <div class="dist-group"><span class="criteria-label">Show</span><span class="view-toggle" id="distMode"></span></div>
+        <div class="dist-group"><span class="criteria-label">Scale</span><span class="view-toggle" id="distScale"></span></div>
+        <div class="dist-group"><span class="criteria-label">Rows</span><span class="view-toggle" id="distRows"></span></div>
+      </div>
+      <div id="distChart" style="position:relative"></div>
+    </div>
+    <div id="distTip" class="dist-tip" style="display:none"></div>
+  </div>
+
+  <div class="attribution">Data: <a href="https://www.tabletopleague.com" target="_blank" rel="noopener">Tabletop League (tabletopleague.com)</a></div>
+</main>
+
+<!-- Color picker popup (shared) -->
+<div class="color-picker-popup" id="colorPickerPopup" style="display:none;position:fixed"></div>
+
+<script>
+// ══════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════
+let matchupData = {};   // "HeroA|||HeroB" -> winrate%
+let gamesData   = {};   // "HeroA|||HeroB" -> games played
+let heroList    = [];   // loaded heroes + heroes that only exist in custom matchups
+let csvHeroes   = [];
+let customMatchups = {}; // "HeroA|||HeroB" -> { wr, games }  (replaces loaded data)
+try { customMatchups = JSON.parse(localStorage.getItem('umds.customMatchups') || '{}') || {}; } catch (e) { customMatchups = {}; }
+let roster      = [];
+let mandatoryHeroesList = [];
+let bannedHeroesList    = [];
+let scorerView  = 'list';
+let genView     = 'list';
+let selectedGenerator = 'sales';
+
+// Criteria: array of { threshold (min winrate%), pts, color }
+function defaultCriteria() {
+  return [
+    { threshold: 60, pts: 1,    color: '#57DB1C' },
+    { threshold: 45, pts: 0.5,  color: '#3020B7' },
+    { threshold: 0,  pts: -1,   color: '#D20707' },
+  ];
+}
+let criteria = defaultCriteria();
+
+const TIER_COLORS = [
+  { label:'Bright Red',    bg:'#D20707', text:'#ffaaaa' },
+  { label:'Dark Red',      bg:'#7E1414', text:'#f89090' },
+  { label:'Light Red',     bg:'#F85A5A', text:'#fff0f0' },
+  { label:'Bright Purple', bg:'#5C4AF1', text:'#d0c8ff' },
+  { label:'Deep Blue',     bg:'#3020B7', text:'#b0aaff' },
+  { label:'Dark Blue',     bg:'#251A8A', text:'#a0a0ff' },
+  { label:'Light Blue',    bg:'#4FABF8', text:'#e8f6ff' },
+  { label:'Light Green',   bg:'#91F877', text:'#1a4a10' },
+  { label:'Dark Green',    bg:'#199A17', text:'#ccffcc' },
+  { label:'Bright Green',  bg:'#57DB1C', text:'#e8ffe0' },
+];
+
+// Generator definitions
+// Fixed per-generator colours (exe theme SERIES_COLORS, by registration order)
+const SERIES_COLORS = ['#3987e5','#d95926','#199e70','#c98500','#d55181','#008300','#9085e9','#e66767'];
+const GENERATORS = [
+  {
+    id: 'sales',
+    name: "Sale's generator",
+    desc: "Tries 1,000 random drafts and keeps the most balanced one, judging each hero by win-rate tiers against the rest of the draft.",
+    scoring: 'tiers', pick: salesPick
+  },
+  {
+    id: 'komarica',
+    name: "Komarica's generator",
+    desc: "Tries a handful of random drafts and keeps the second most balanced one, judging each hero by its win rates against the rest of the draft. Skipping the most balanced draft keeps the picks closer to random. Matchups with few games played count less.",
+    scoring: 'linear', pick: komaricaPick
+  },
+  {
+    id: 'fair',
+    name: "Fair-enough generator",
+    desc: "Draws random drafts until one is balanced enough — more balanced than most random drafts — and keeps that one. Every balanced-enough draft is equally likely, so picks stay close to random. Judges heroes like Komarica's generator.",
+    scoring: 'linear', pick: fairPick
+  },
+  {
+    id: 'mbmp',
+    name: "MBMP generator",
+    desc: "Most balanced, most played: tries 200 random drafts and keeps the one with the most close matchups (40–60% win rate) that have been played a lot. Very close matchups (45–55%) count a little extra.",
+    scoring: 'linear', pick: mbmpPick
+  },
+  {
+    id: 'unknown',
+    name: "Land of Unknown",
+    desc: "Tries 200 random drafts and keeps the one whose heroes have played each other the least — matchups nobody knows much about.",
+    scoring: 'linear', pick: unknownPick
+  },
+  {
+    id: 'pure',
+    name: "Pure random",
+    desc: "Every hero is equally likely to be picked. Win rates are only used to split the draft into tiers.",
+    scoring: 'linear', pick: purePick
+  },
+];
+
+// ══════════════════════════════════════════════════════
+// NAV
+// ══════════════════════════════════════════════════════
+document.querySelectorAll('.nav-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+  });
+});
+
+document.querySelectorAll('.source-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.source-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.source-panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('spanel-' + tab.dataset.src).classList.add('active');
+  });
+});
+
+// ══════════════════════════════════════════════════════
+// CSV LOADING
+// ══════════════════════════════════════════════════════
+const csvFileEl  = document.getElementById('csvFile');
+const uploadZone = document.getElementById('uploadZone');
+
+csvFileEl.addEventListener('change', e => { if (e.target.files[0]) readFile(e.target.files[0]); });
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+uploadZone.addEventListener('drop', e => { e.preventDefault(); uploadZone.classList.remove('dragover'); if (e.dataTransfer.files[0]) readFile(e.dataTransfer.files[0]); });
+
+function readFile(file) {
+  const r = new FileReader();
+  r.onload = ev => parseCSV(ev.target.result, file.name);
+  r.readAsText(file);
+}
+
+document.getElementById('loadUrlBtn').addEventListener('click', async () => {
+  const raw = document.getElementById('driveUrl').value.trim();
+  if (!raw) return;
+  const m = raw.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || raw.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (!m) { showMsg('dataMsg', 'error', 'Could not extract a file ID from that URL.'); return; }
+  const btn = document.getElementById('loadUrlBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Loading…';
+  try {
+    const res = await fetch(`https://drive.google.com/uc?export=download&id=${m[1]}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+    if (text.trim().startsWith('<')) throw new Error('Drive returned HTML — make sure the file is shared as "Anyone with the link".');
+    parseCSV(text, 'Google Drive CSV');
+  } catch(err) { showMsg('dataMsg', 'error', err.message); }
+  finally { btn.disabled = false; btn.textContent = 'Load'; }
+});
+
+function parseCSVLine(line) {
+  const cols = []; let cur = '', inQ = false;
+  for (const c of line) {
+    if (c === '"') { inQ = !inQ; }
+    else if (c === ',' && !inQ) { cols.push(cur.trim()); cur = ''; }
+    else cur += c;
+  }
+  cols.push(cur.trim());
+  return cols;
+}
+
+function parseCSV(text, sourceName) {
+  text = text.replace(/^﻿/, '');
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  if (!lines[0].includes('Hero A')) { showMsg('dataMsg', 'error', 'Wrong file — please use hero-matchups-unmatched.csv'); return; }
+  const headers = parseCSVLine(lines[0]);
+  const iA  = headers.indexOf('Hero A');
+  const iB  = headers.indexOf('Hero B');
+  const iWR = headers.indexOf('Hero A Win Rate %');
+  const iG  = headers.indexOf('Games');
+  if (iA<0||iB<0||iWR<0) { showMsg('dataMsg','error','Could not find expected columns.'); return; }
+
+  matchupData = {}; gamesData = {};
+  const heroSet = new Set(); let parsed = 0;
+  for (let i = 1; i < lines.length; i++) {
+    const cols = parseCSVLine(lines[i]);
+    const a = cols[iA], b = cols[iB], wr = parseFloat(cols[iWR]);
+    const g = iG >= 0 ? parseInt(cols[iG]) : null;
+    if (!a || !b || isNaN(wr)) continue;
+    matchupData[a+'|||'+b] = wr;
+    if (g !== null && !isNaN(g)) gamesData[a+'|||'+b] = g;
+    heroSet.add(a); heroSet.add(b); parsed++;
+  }
+  csvHeroes = Array.from(heroSet).sort();
+  rebuildHeroList();
+  document.getElementById('fileName').textContent = `✓ ${sourceName} — ${parsed} matchups, ${heroList.length} heroes`;
+  showMsg('dataMsg','success',`Loaded ${heroList.length} heroes and ${parsed} matchup records.`);
+
+  const DEFAULT_BANS = ['Sherlock Holmes','Elektra','Doctor Strange','Angel','Willow','Spike','Deadpool','Squirrel Girl'];
+  bannedHeroesList = DEFAULT_BANS.filter(h => heroList.includes(h));
+  renderGenTags();
+  enableAll();
+}
+
+function enableAll() {
+  ['heroInput','mandatoryInput','bannedInput'].forEach(id => document.getElementById(id).disabled = false);
+  ['addBtn','scoreAllBtn','addMandatoryBtn','addBannedBtn','genBtn'].forEach(id => document.getElementById(id).disabled = false);
+  updateScoreBtn();
+}
+
+// ══════════════════════════════════════════════════════
+// CRITERIA
+// ══════════════════════════════════════════════════════
+let activeSwatch = null;
+
+function renderCriteria() {
+  const list = document.getElementById('criteriaList');
+  list.innerHTML = '';
+  criteria.forEach((c, i) => {
+    const row = document.createElement('div');
+    row.className = 'criteria-row';
+
+    const inner = document.createElement('div');
+    inner.className = 'criteria-row-inner';
+
+    const thLabel = document.createElement('span');
+    thLabel.className = 'criteria-label';
+    thLabel.textContent = '≥';
+
+    const thInput = document.createElement('input');
+    thInput.type = 'number'; thInput.value = c.threshold; thInput.min = 0; thInput.max = 100; thInput.step = 0.1;
+    thInput.style.width = '75px';
+    thInput.addEventListener('input', () => { criteria[i].threshold = parseFloat(thInput.value)||0; });
+
+    const ptsLabel = document.createElement('span');
+    ptsLabel.className = 'criteria-label';
+    ptsLabel.textContent = '% →';
+
+    const ptsInput = document.createElement('input');
+    ptsInput.type = 'number'; ptsInput.value = c.pts; ptsInput.step = 0.5;
+    ptsInput.style.width = '75px';
+    ptsInput.addEventListener('input', () => { criteria[i].pts = parseFloat(ptsInput.value)||0; });
+
+    const ptsLabel2 = document.createElement('span');
+    ptsLabel2.className = 'criteria-label';
+    ptsLabel2.textContent = 'pts';
+
+    const swatch = document.createElement('div');
+    swatch.className = 'color-swatch';
+    swatch.style.background = c.color;
+    swatch.addEventListener('click', e => { e.stopPropagation(); openColorPicker(i, swatch); });
+
+    inner.appendChild(thLabel); inner.appendChild(thInput);
+    inner.appendChild(ptsLabel); inner.appendChild(ptsInput);
+    inner.appendChild(ptsLabel2); inner.appendChild(swatch);
+
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'danger';
+    removeBtn.textContent = '✕';
+    removeBtn.addEventListener('click', () => { criteria.splice(i,1); renderCriteria(); });
+
+    row.appendChild(inner); row.appendChild(removeBtn);
+    list.appendChild(row);
+  });
+}
+
+function openColorPicker(criteriaIdx, swatchEl) {
+  const popup = document.getElementById('colorPickerPopup');
+  popup.innerHTML = '';
+  TIER_COLORS.forEach(tc => {
+    const opt = document.createElement('div');
+    opt.className = 'color-option';
+    opt.style.background = tc.bg;
+    opt.title = tc.label;
+    if (criteria[criteriaIdx].color === tc.bg) opt.classList.add('selected');
+    opt.addEventListener('click', () => {
+      criteria[criteriaIdx].color = tc.bg;
+      swatchEl.style.background = tc.bg;
+      popup.style.display = 'none';
+      activeSwatch = null;
+    });
+    popup.appendChild(opt);
+  });
+  const rect = swatchEl.getBoundingClientRect();
+  popup.style.display = 'flex';
+  popup.style.top = (rect.bottom + 6) + 'px';
+  popup.style.left = Math.min(rect.left, window.innerWidth - 175) + 'px';
+  activeSwatch = criteriaIdx;
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.color-swatch') && !e.target.closest('#colorPickerPopup')) {
+    document.getElementById('colorPickerPopup').style.display = 'none';
+    activeSwatch = null;
+  }
+});
+
+document.getElementById('addCriteriaBtn').addEventListener('click', () => {
+  if (criteria.length >= 10) { showMsg('criteriaMsg','info','Maximum 10 tiers.'); return; }
+  criteria.push({ threshold: 0, pts: 0, color: '#2d4a6e' });
+  renderCriteria();
+});
+
+document.getElementById('resetCriteriaBtn').addEventListener('click', () => {
+  criteria = defaultCriteria();
+  document.getElementById('confMinGames').value = 5;
+  syncCoeff(0);
+  renderCriteria();
+  showMsg('criteriaMsg','success','Reset to defaults.');
+});
+
+document.getElementById('resetLinearBtn').addEventListener('click', () => {
+  document.getElementById('linearPPP').value = 10;
+  document.getElementById('linearPrior').value = 5;
+  document.getElementById('komaricaAttempts').value = 10;
+  document.getElementById('salesAttempts').value = 1000;
+  document.getElementById('fairMaxAttempts').value = 1000;
+  document.getElementById('mbmpAttempts').value = 200;
+  document.getElementById('unknownAttempts').value = 200;
+  document.getElementById('mbmpCoreBonus').value = 1.25;
+  document.getElementById('mbmpRange').value = 60;
+  document.getElementById('mbmpCore').value = 55;
+  document.getElementById('fairPercent').value = 80;
+  document.getElementById('mbmpRange').value = 60;
+  document.getElementById('mbmpCore').value = 55;
+  document.getElementById('mbmpCoreBonus').value = 1.25;
+  showMsg('criteriaMsg','success','Linear scoring reset to defaults.');
+});
+
+renderCriteria();
+
+// ══════════════════════════════════════════════════════
+// SCORING LOGIC (TIER-BASED / SALE'S)
+// ══════════════════════════════════════════════════════
+function customWR(a, b) {
+  const k1 = a+'|||'+b, k2 = b+'|||'+a;
+  if (customMatchups[k1]) return { wr: customMatchups[k1].wr, games: customMatchups[k1].games };
+  if (customMatchups[k2]) return { wr: 100 - customMatchups[k2].wr, games: customMatchups[k2].games };
+  return null;
+}
+
+// Win rate of a vs b: custom matchups first, then the loaded data (exe DraftModel.get_wr)
+function getWR(a, b) {
+  return customWR(a, b) || csvWR(a, b);
+}
+
+function csvWR(a, b) {
+  const k1 = a+'|||'+b, k2 = b+'|||'+a;
+  if (matchupData[k1] !== undefined) return { wr: matchupData[k1], games: gamesData[k1] ?? null };
+  if (matchupData[k2] !== undefined) return { wr: 100 - matchupData[k2], games: gamesData[k2] ?? null };
+  return null;
+}
+
+function getGames(a, b) {
+  const r = getWR(a, b);
+  return r ? r.games : null;
+}
+
+function rebuildHeroList() {
+  const set = new Set(csvHeroes);
+  Object.keys(customMatchups).forEach(k => k.split('|||').forEach(h => set.add(h)));
+  heroList = Array.from(set).sort((a,b) => a.localeCompare(b));
+  if (csvHeroes.length) {
+    roster = roster.filter(h => set.has(h));
+    mandatoryHeroesList = mandatoryHeroesList.filter(h => set.has(h));
+    bannedHeroesList = bannedHeroesList.filter(h => set.has(h));
+  }
+}
+
+function applyConfidence(pts, games) {
+  const minGames = parseInt(document.getElementById('confMinGames').value) || 5;
+  const coeff    = parseFloat(document.getElementById('confCoeff').value);
+  if (games !== null && games < minGames) return pts * coeff;
+  return pts;
+}
+
+function scoreWR(wr, games) {
+  const sorted = [...criteria].sort((a,b) => b.threshold - a.threshold);
+  for (const c of sorted) {
+    if (wr >= c.threshold) {
+      const rawPts = applyConfidence(c.pts, games);
+      return { pts: rawPts, color: c.color };
+    }
+  }
+  return { pts: 0, color: '#252a38' };
+}
+
+function scoreHeroInRoster(hero, ros) {
+  let points = 0;
+  const matchups = [];
+  ros.forEach(opp => {
+    if (opp === hero) return;
+    const result = getWR(hero, opp);
+    if (result === null) { matchups.push({ opp, wr: null, pts: 0, color: null, games: null }); return; }
+    const { wr, games } = result;
+    const { pts, color } = scoreWR(wr, games);
+    points += pts;
+    matchups.push({ opp, wr, pts, color, games, modified: isConfidenceModified(games) });
+  });
+  return { hero, points, matchups };
+}
+
+// ══════════════════════════════════════════════════════
+// LINEAR SCORING (KOMARICA)
+// ══════════════════════════════════════════════════════
+function getLinearSettings() {
+  return {
+    ppp:       parseFloat(document.getElementById('linearPPP').value)       || 10,
+    prior:     Math.max(0, parseFloat(document.getElementById('linearPrior').value) || 0),
+    komAttempts: Math.max(1, parseInt(document.getElementById('komaricaAttempts').value) || 10),
+    salesAttempts: Math.max(1, parseInt(document.getElementById('salesAttempts').value) || 1000),
+    fairMax: Math.max(1, parseInt(document.getElementById('fairMaxAttempts').value) || 1000),
+    mbmpAttempts: Math.max(1, parseInt(document.getElementById('mbmpAttempts').value) || 200),
+    unknownAttempts: Math.max(1, parseInt(document.getElementById('unknownAttempts').value) || 200),
+    fairPct:   parseFloat(document.getElementById('fairPercent').value)     || 80,
+    mbmpRange: parseFloat(document.getElementById('mbmpRange').value)       || 60,
+    mbmpCore:  parseFloat(document.getElementById('mbmpCore').value)        || 55,
+    mbmpBonus: parseFloat(document.getElementById('mbmpCoreBonus').value)   || 1.25,
+  };
+}
+
+function linearWeight(games, prior) {
+  if (games === null || games === undefined) return 1;
+  games = Math.max(games, 0);
+  return games + prior > 0 ? games / (games + prior) : 1;
+}
+
+function linearPoints(wr, games, ppp, prior) {
+  const w = linearWeight(games, prior);
+  return ((wr - 50) / ppp) * w;
+}
+
+// Hero score in roster using linear scoring; returns { hero, points, matchups }
+function linearScoreHero(hero, ros, ls) {
+  let points = 0;
+  const matchups = [];
+  ros.forEach(opp => {
+    if (opp === hero) return;
+    const r = getWR(hero, opp);
+    if (!r) { matchups.push({ opp, wr: null, pts: 0, color: null, games: null }); return; }
+    const { wr, games } = r;
+    const pts = linearPoints(wr, games, ls.ppp, ls.prior);
+    const weight = linearWeight(games, ls.prior);
+    // Color: use tier scoring color for display
+    const { color } = scoreWR(wr, games);
+    const modified = weight < 0.5;
+    points += pts;
+    matchups.push({ opp, wr, pts, color, games, modified });
+  });
+  return { hero, points, matchups };
+}
+
+// Roster spread: max points - min points
+function rosterSpread(scores) {
+  const pts = scores.map(s => s.points);
+  return Math.max(...pts) - Math.min(...pts);
+}
+
+// ══════════════════════════════════════════════════════
+// MBMP VALUE
+// ══════════════════════════════════════════════════════
+function mbmpValue(wr, games, ls) {
+  const lo = 100 - ls.mbmpRange;
+  const hiCore = ls.mbmpCore;
+  const loCore = 100 - ls.mbmpCore;
+  if (wr < lo || wr > ls.mbmpRange) return 0;
+  const base = Math.log1p(Math.max(0, games || 0));
+  const isCore = wr >= loCore && wr <= hiCore;
+  return base * (isCore ? ls.mbmpBonus : 1);
+}
+
+// ══════════════════════════════════════════════════════
+// GENERATOR ALGORITHMS
+// ══════════════════════════════════════════════════════
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length-1; i > 0; i--) { const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+
+// ══ GenContext — mirrors the exe: everything a generator needs, with each
+// points matrix computed once per context. Rosters are arrays of hero indexes;
+// mandatory heroes are indexes 0..m-1, the fill pool m..n-1.
+class GenContext {
+  constructor(mandatory, fillPool, slots) {
+    this.mandatory = mandatory; this.fillPool = fillPool; this.slots = slots;
+    this.heroes = [...mandatory, ...fillPool];
+    this.n = this.heroes.length; this.m = mandatory.length;
+    this.work = Int32Array.from({ length: fillPool.length }, (_, k) => this.m + k);
+    this.ls = getLinearSettings();
+    this.cache = {};
+    const n = this.n;
+    this.wr = new Float64Array(n*n).fill(NaN);   // NaN = no data
+    this.gm = new Float64Array(n*n).fill(NaN);   // NaN = games unknown
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+      if (i === j) continue;
+      const r = getWR(this.heroes[i], this.heroes[j]);
+      if (r) { this.wr[i*n+j] = r.wr; if (r.games !== null && r.games !== undefined) this.gm[i*n+j] = r.games; }
+    }
+  }
+  // matrix[i*n+j] = value(win rate of i vs j, games); 0 for itself or no data
+  matrix(key, value) {
+    if (!this.cache[key]) {
+      const n = this.n, M = new Float64Array(n*n);
+      for (let k = 0; k < n*n; k++) {
+        if (isNaN(this.wr[k])) continue;
+        M[k] = value(this.wr[k], isNaN(this.gm[k]) ? null : this.gm[k]);
+      }
+      this.cache[key] = M;
+    }
+    return this.cache[key];
+  }
+  points(scoring) {
+    const ls = this.ls;
+    return scoring === 'linear'
+      ? this.matrix('pts:linear', (wr, g) => linearPoints(wr, g, ls.ppp, ls.prior))
+      : this.matrix('pts:tiers', (wr, g) => scoreWR(wr, g).pts);
+  }
+  // The mandatory heroes plus a uniformly random fill (partial Fisher–Yates)
+  random() {
+    const w = this.work, L = w.length, out = new Int32Array(this.m + this.slots);
+    for (let k = 0; k < this.m; k++) out[k] = k;
+    for (let k = 0; k < this.slots; k++) {
+      const j = k + Math.floor(Math.random() * (L - k));
+      const t = w[k]; w[k] = w[j]; w[j] = t;
+      out[this.m + k] = w[k];
+    }
+    return out;
+  }
+  // Gap between the highest and lowest scoring hero in the roster
+  spread(roster, scoring) {
+    const M = this.points(scoring), n = this.n;
+    let hi = -Infinity, lo = Infinity;
+    for (let a = 0; a < roster.length; a++) {
+      const row = roster[a] * n; let t = 0;
+      for (let b = 0; b < roster.length; b++) if (a !== b) t += M[row + roster[b]];
+      if (t > hi) hi = t; if (t < lo) lo = t;
+    }
+    return hi - lo;
+  }
+  // Sum of value over every pair in the roster, each pair once
+  pairTotal(roster, key, value) {
+    const M = this.matrix(key, value), n = this.n;
+    let t = 0;
+    for (let a = 0; a < roster.length; a++) for (let b = a + 1; b < roster.length; b++) t += M[roster[a]*n + roster[b]];
+    return t;
+  }
+  names(roster) { return Array.from(roster, i => this.heroes[i]); }
+}
+
+function leastSpread(ctx, attempts, scoring) {
+  let best = null, bestSpread = Infinity;
+  for (let i = 0; i < attempts; i++) {
+    const c = ctx.random(), sp = ctx.spread(c, scoring);
+    if (sp < bestSpread) { best = c; bestSpread = sp; }
+    if (bestSpread === 0) break;
+  }
+  return best;
+}
+
+// Of `attempts` random rosters, the one with the highest objective (first one on ties)
+function bestBy(ctx, attempts, objective) {
+  let best = null, bestValue = null;
+  for (let i = 0; i < attempts; i++) {
+    const c = ctx.random(), v = objective(c);
+    if (bestValue === null || v > bestValue) { best = c; bestValue = v; }
+  }
+  return best;
+}
+
+function salesPick(ctx) { return leastSpread(ctx, ctx.ls.salesAttempts, 'tiers'); }
+
+// Second smallest linear spread of komarica_attempts random rosters (ties keep draw order)
+function komaricaPick(ctx) {
+  const ranked = [];
+  for (let i = 0; i < ctx.ls.komAttempts; i++) { const c = ctx.random(); ranked.push({ c, sp: ctx.spread(c, 'linear') }); }
+  ranked.sort((a, b) => a.sp - b.sp);
+  return (ranked.length > 1 ? ranked[1] : ranked[0]).c;
+}
+
+const CALIBRATION_DRAFTS = 500;
+// First random roster whose spread beats fair_percent % of random rosters; the cut-off
+// is estimated once per context; after fair_max_attempts the most balanced one seen is used.
+function fairPick(ctx) {
+  const key = 'fair cut:' + ctx.ls.fairPct;
+  if (!(key in ctx.cache)) {
+    const sample = [];
+    for (let i = 0; i < CALIBRATION_DRAFTS; i++) sample.push(ctx.spread(ctx.random(), 'linear'));
+    sample.sort((a, b) => a - b);
+    ctx.cache[key] = sample[Math.min(Math.floor((1 - ctx.ls.fairPct / 100) * sample.length), sample.length - 1)];
+  }
+  const cut = ctx.cache[key];
+  let best = null, bestSpread = Infinity;
+  for (let i = 0; i < ctx.ls.fairMax; i++) {
+    const c = ctx.random(), sp = ctx.spread(c, 'linear');
+    if (sp <= cut) return c;
+    if (sp < bestSpread) { best = c; bestSpread = sp; }
+  }
+  return best;
+}
+
+function mbmpPick(ctx) {
+  const ls = ctx.ls, key = `mbmp:${ls.mbmpBonus}:${ls.mbmpRange}:${ls.mbmpCore}`;
+  return bestBy(ctx, ls.mbmpAttempts, r => ctx.pairTotal(r, key, (wr, g) => mbmpValue(wr, g, ls)));
+}
+
+function unknownPick(ctx) {
+  return bestBy(ctx, ctx.ls.unknownAttempts, r => -ctx.pairTotal(r, 'games', (wr, g) => g || 0));
+}
+
+function purePick(ctx) { return ctx.random(); }
+
+// Validate input and build a context; returns a GenContext or an error string
+function prepareContext(count) {
+  if (isNaN(count) || count < 2) return 'Need at least 2 heroes.';
+  const mandatory = mandatoryHeroesList.filter(h => heroList.includes(h));
+  if (mandatory.length > count) return `You have ${mandatory.length} mandatory heroes but only want ${count} total.`;
+  const pool = heroList.filter(h => !bannedHeroesList.includes(h));
+  if (pool.length < count) return `Not enough heroes in pool (need ${count}, have ${pool.length} after bans).`;
+  const fillPool = pool.filter(h => !mandatory.includes(h));
+  return new GenContext(mandatory, fillPool, count - mandatory.length);
+}
+
+// ══════════════════════════════════════════════════════
+// GENERATOR SELECTOR UI
+// ══════════════════════════════════════════════════════
+function renderGenSelector() {
+  const el = document.getElementById('genSelector');
+  el.innerHTML = '';
+  GENERATORS.forEach(gen => {
+    const opt = document.createElement('label');
+    opt.className = 'gen-option' + (selectedGenerator === gen.id ? ' selected' : '');
+
+    const radio = document.createElement('input');
+    radio.type = 'radio';
+    radio.name = 'genAlgo';
+    radio.value = gen.id;
+    radio.checked = selectedGenerator === gen.id;
+    radio.addEventListener('change', () => {
+      selectedGenerator = gen.id;
+      document.querySelectorAll('.gen-option').forEach(o => o.classList.remove('selected'));
+      opt.classList.add('selected');
+    });
+
+    const textDiv = document.createElement('div');
+    const nameDiv = document.createElement('div');
+    nameDiv.className = 'gen-option-name';
+    nameDiv.textContent = gen.name;
+    const descDiv = document.createElement('div');
+    descDiv.className = 'gen-option-desc';
+    descDiv.textContent = gen.desc;
+
+    textDiv.appendChild(nameDiv);
+    textDiv.appendChild(descDiv);
+    opt.appendChild(radio);
+    opt.appendChild(textDiv);
+    el.appendChild(opt);
+  });
+}
+
+renderGenSelector();
+
+// ══════════════════════════════════════════════════════
+// AUTOCOMPLETE
+// ══════════════════════════════════════════════════════
+function makeAC(inputId, acId, getExcludes, onSelect, keep) {
+  const input = document.getElementById(inputId);
+  const ac    = document.getElementById(acId);
+  let idx = -1;
+
+  function renderList(q) {
+    const matches = heroList.filter(h => h.toLowerCase().includes(q) && !getExcludes().includes(h)).slice(0, 12);
+    idx = -1; ac.innerHTML = '';
+    if (!matches.length) { ac.classList.remove('open'); return; }
+    matches.forEach(h => {
+      const div = document.createElement('div');
+      div.className = 'autocomplete-item';
+      div.textContent = h;
+      div.addEventListener('mousedown', e => { e.preventDefault(); input.value = keep ? h : ''; onSelect(h); ac.classList.remove('open'); });
+      ac.appendChild(div);
+    });
+    ac.classList.add('open');
+  }
+
+  input.addEventListener('input', () => {
+    const q = input.value.trim().toLowerCase();
+    if (q) renderList(q); else ac.classList.remove('open');
+  });
+
+  input.addEventListener('keydown', e => {
+    const items = ac.querySelectorAll('.autocomplete-item');
+    if (e.key === 'ArrowDown') { e.preventDefault(); idx = Math.min(idx+1, items.length-1); items.forEach((el,i) => el.classList.toggle('active', i===idx)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); idx = Math.max(idx-1,0); items.forEach((el,i) => el.classList.toggle('active', i===idx)); }
+    else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (idx >= 0 && items[idx]) { const v = items[idx].textContent; input.value = keep ? v : ''; onSelect(v); ac.classList.remove('open'); }
+      else {
+        const val = input.value.trim();
+        const match = heroList.find(h => h.toLowerCase() === val.toLowerCase());
+        if (match) { input.value = keep ? match : ''; onSelect(match); ac.classList.remove('open'); }
+      }
+    }
+    else if (e.key === 'Escape') { ac.classList.remove('open'); }
+  });
+
+  document.addEventListener('click', e => { if (!e.target.closest('#'+inputId) && !e.target.closest('#'+acId)) ac.classList.remove('open'); });
+}
+
+// ══════════════════════════════════════════════════════
+// SCORER
+// ══════════════════════════════════════════════════════
+function renderRosterTags() {
+  const el = document.getElementById('heroTags');
+  el.innerHTML = '';
+  roster.forEach(name => {
+    const tag = document.createElement('div'); tag.className = 'hero-tag';
+    const label = document.createElement('span'); label.textContent = name;
+    const btn = document.createElement('button'); btn.className = 'remove'; btn.textContent = '×';
+    btn.addEventListener('click', () => { roster = roster.filter(h => h !== name); renderRosterTags(); updateScoreBtn(); document.getElementById('scorerResults').innerHTML = ''; });
+    tag.appendChild(label); tag.appendChild(btn); el.appendChild(tag);
+  });
+  document.getElementById('heroCount').textContent = roster.length > 0 ? `${roster.length} hero${roster.length !== 1 ? 'es' : ''}` : '';
+}
+
+function updateScoreBtn() {
+  const dis = roster.length < 2 || Object.keys(matchupData).length === 0;
+  document.getElementById('scoreBtn').disabled = dis;
+}
+
+makeAC('heroInput', 'heroAC', () => roster, name => {
+  if (!roster.includes(name)) { roster.push(name); renderRosterTags(); updateScoreBtn(); document.getElementById('scorerResults').innerHTML = ''; clearMsg('scorerMsg'); }
+  else showMsg('scorerMsg', 'info', `${name} is already in the roster.`);
+});
+
+document.getElementById('addBtn').addEventListener('click', () => {
+  const val = document.getElementById('heroInput').value.trim();
+  const match = heroList.find(h => h.toLowerCase() === val.toLowerCase());
+  if (match) { if (!roster.includes(match)) { roster.push(match); document.getElementById('heroInput').value=''; renderRosterTags(); updateScoreBtn(); document.getElementById('scorerResults').innerHTML=''; } }
+  else if (val) showMsg('scorerMsg', 'error', `"${val}" not found.`);
+});
+
+document.getElementById('scoreAllBtn').addEventListener('click', () => {
+  roster = [...heroList];
+  renderRosterTags(); updateScoreBtn();
+  document.getElementById('scorerResults').innerHTML = '';
+  clearMsg('scorerMsg');
+});
+
+document.getElementById('clearBtn').addEventListener('click', () => {
+  roster = []; renderRosterTags(); updateScoreBtn();
+  document.getElementById('scorerResults').innerHTML = ''; clearMsg('scorerMsg');
+});
+
+let lastScorerRoster = null, lastScorerTiers = 2, lastScorerScoring = 'tiers', scorerScoring = 'tiers';
+document.querySelectorAll('#scorerScoring .view-btn').forEach(b => b.addEventListener('click', () => {
+  scorerScoring = b.dataset.scoring;
+  document.querySelectorAll('#scorerScoring .view-btn').forEach(x => x.classList.toggle('active', x === b));
+}));
+
+function renderScorerResults(view) {
+  scorerView = view;
+  if (!lastScorerRoster) return;
+  renderResults(lastScorerRoster, 'scorerResults', view, v => renderScorerResults(v), null, lastScorerTiers, lastScorerScoring);
+}
+
+document.getElementById('scoreBtn').addEventListener('click', () => {
+  const ls = getLinearSettings();
+  lastScorerScoring = scorerScoring;
+  lastScorerTiers = Math.min(6, Math.max(1, parseInt(document.getElementById('scorerTiers').value) || 1));
+  lastScorerRoster = roster.map(h => scorerScoring === 'linear' ? linearScoreHero(h, roster, ls) : scoreHeroInRoster(h, roster))
+                           .sort((a,b) => b.points - a.points);
+  renderScorerResults(scorerView);
+});
+
+// ══════════════════════════════════════════════════════
+// GENERATOR
+// ══════════════════════════════════════════════════════
+function renderGenTags() {
+  renderTagList(mandatoryHeroesList, 'mandatoryTags', 'mandatory-tag', h => {
+    mandatoryHeroesList = mandatoryHeroesList.filter(x => x !== h); renderGenTags();
+  });
+  renderTagList(bannedHeroesList, 'bannedTags', 'banned-tag', h => {
+    bannedHeroesList = bannedHeroesList.filter(x => x !== h); renderGenTags();
+  });
+}
+
+function renderTagList(list, containerId, cls, onRemove) {
+  const el = document.getElementById(containerId); el.innerHTML = '';
+  list.forEach(name => {
+    const tag = document.createElement('div'); tag.className = `hero-tag ${cls}`;
+    const label = document.createElement('span'); label.textContent = name;
+    const btn = document.createElement('button'); btn.className = 'remove'; btn.textContent = '×';
+    btn.addEventListener('click', () => onRemove(name));
+    tag.appendChild(label); tag.appendChild(btn); el.appendChild(tag);
+  });
+}
+
+function genExcludes() { return [...mandatoryHeroesList, ...bannedHeroesList]; }
+
+makeAC('mandatoryInput', 'mandatoryAC', genExcludes, name => {
+  if (!mandatoryHeroesList.includes(name)) { mandatoryHeroesList.push(name); renderGenTags(); }
+});
+document.getElementById('addMandatoryBtn').addEventListener('click', () => {
+  const val = document.getElementById('mandatoryInput').value.trim();
+  const match = heroList.find(h => h.toLowerCase() === val.toLowerCase());
+  if (match && !mandatoryHeroesList.includes(match)) { mandatoryHeroesList.push(match); document.getElementById('mandatoryInput').value=''; renderGenTags(); }
+});
+
+makeAC('bannedInput', 'bannedAC', genExcludes, name => {
+  if (!bannedHeroesList.includes(name)) { bannedHeroesList.push(name); renderGenTags(); }
+});
+document.getElementById('addBannedBtn').addEventListener('click', () => {
+  const val = document.getElementById('bannedInput').value.trim();
+  const match = heroList.find(h => h.toLowerCase() === val.toLowerCase());
+  if (match && !bannedHeroesList.includes(match)) { bannedHeroesList.push(match); document.getElementById('bannedInput').value=''; renderGenTags(); }
+});
+
+document.getElementById('genBtn').addEventListener('click', () => {
+  const btn = document.getElementById('genBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Generating…';
+  setTimeout(() => { try { generateRoster(); } finally { btn.disabled = false; btn.textContent = 'Generate'; } }, 20);
+});
+
+function generateRoster() {
+  const count = parseInt(document.getElementById('genCount').value);
+  if (count > 42) { showMsg('generatorMsg','error','Maximum is 42 heroes.'); return; }
+  const resultsEl = document.getElementById('generatorResults');
+  resultsEl.innerHTML = '';
+
+  const ctx = prepareContext(count);
+  if (typeof ctx === 'string') { showMsg('generatorMsg','error', ctx); return; }
+  clearMsg('generatorMsg');
+
+  const gen = selectedGenerator;
+  const genObj = GENERATORS.find(g => g.id === gen);
+  const picked = genObj.pick(ctx);
+  if (!picked) { showMsg('generatorMsg','error','Could not generate a roster. Try adjusting your settings.'); return; }
+  const names = ctx.names(picked);
+  const scoredList = names.map(h => genObj.scoring === 'linear' ? linearScoreHero(h, names, ctx.ls) : scoreHeroInRoster(h, names));
+  const allPts = scoredList.map(x => x.points);
+  const result = { roster: scoredList, spread: Math.max(...allPts) - Math.min(...allPts) };
+
+  const bestRoster = result.roster.sort((a,b) => b.points - a.points);
+  const pts = bestRoster.map(s => s.points);
+  const genDef = GENERATORS.find(g => g.id === gen);
+
+  const summary = document.createElement('div');
+  summary.className = 'gen-summary';
+  summary.innerHTML = `
+    <div class="gen-stat"><span class="gen-stat-label">Heroes</span><span class="gen-stat-value">${bestRoster.length}</span></div>
+    <div class="gen-stat"><span class="gen-stat-label">Highest</span><span class="gen-stat-value">${Math.max(...pts)>0?'+':''}${Math.max(...pts).toFixed(2)}</span></div>
+    <div class="gen-stat"><span class="gen-stat-label">Lowest</span><span class="gen-stat-value">${Math.min(...pts)>0?'+':''}${Math.min(...pts).toFixed(2)}</span></div>
+    <div class="gen-stat"><span class="gen-stat-label">Spread</span><span class="gen-stat-value">${result.spread.toFixed(2)} pts</span></div>
+    <span class="gen-algorithm-label">via ${genDef ? genDef.name : gen}</span>
+  `;
+
+  lastGenRoster = bestRoster;
+  lastGenSummary = summary;
+  lastGenTiers = Math.min(6, Math.max(1, parseInt(document.getElementById('splitTiers').value) || 1));
+  lastGenScoring = genDef ? genDef.scoring : 'tiers';
+  renderGenResults(genView);
+}
+
+let lastGenRoster = null, lastGenSummary = null, lastGenTiers = 1, lastGenScoring = 'tiers';
+
+function renderGenResults(view) {
+  genView = view;
+  if (!lastGenRoster) return;
+  const summaryClone = lastGenSummary.cloneNode(true);
+  renderResults(lastGenRoster, 'generatorResults', view, v => renderGenResults(v), summaryClone, lastGenTiers, lastGenScoring);
+}
+
+// ══════════════════════════════════════════════════════
+// DISPLAY HELPERS
+// ══════════════════════════════════════════════════════
+function pillTextColor(bg) {
+  const map = {
+    '#D20707': '#ffaaaa', '#7E1414': '#f89090', '#F85A5A': '#fff0f0',
+    '#5C4AF1': '#d0c8ff', '#3020B7': '#b0aaff', '#251A8A': '#a0a0ff',
+    '#4FABF8': '#e8f6ff', '#91F877': '#1a4a10', '#199A17': '#ccffcc', '#57DB1C': '#e8ffe0',
+  };
+  return map[bg] || '#e2e4ea';
+}
+
+function isConfidenceModified(games) {
+  if (games === null) return false;
+  const minGames = parseInt(document.getElementById('confMinGames').value) || 5;
+  const coeff    = parseFloat(document.getElementById('confCoeff').value);
+  return games < minGames && coeff !== 1;
+}
+
+// ══════════════════════════════════════════════════════
+// RENDER RESULTS
+// ══════════════════════════════════════════════════════
+function tierLabels(n) {
+  if (n === 2) return ['Upper Tier', 'Lower Tier'];
+  if (n === 3) return ['Upper Tier', 'Middle Tier', 'Lower Tier'];
+  return Array.from({length: n}, (_, i) => `Tier ${i + 1}`);
+}
+
+let hideScores = false;   // "player view": tier boxes alphabetical, no scores or ranking
+
+function copyText(text, btn) {
+  const done = () => { const old = btn.textContent; btn.textContent = 'Copied ✓'; setTimeout(() => { btn.textContent = old; }, 1500); };
+  const fallback = () => {
+    try {
+      const ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); done();
+    } catch (e) { btn.textContent = 'Copy failed'; }
+  };
+  try { navigator.clipboard.writeText(text).then(done, fallback); } catch (e) { fallback(); }
+}
+
+function renderResults(scored, containerId, view, onViewChange, prependEl, tierCount, scoring) {
+  const el = document.getElementById(containerId);
+  el.innerHTML = '';
+  if (view !== 'grid') view = 'list';
+
+  if (prependEl && !hideScores) el.appendChild(prependEl);
+
+  // ── Tier split (exe TierSplit): best-first chunks, higher tiers get the extra heroes.
+  // Ordered by score with points shown; alphabetical with no scores in player view.
+  const tiers = Math.max(1, Math.min(tierCount || 1, scored.length));
+  const labels = tierLabels(tiers);
+  const tierOf = [];
+  {
+    const base = Math.floor(scored.length / tiers), extra = scored.length % tiers;
+    for (let t = 0; t < tiers; t++) for (let k = 0; k < base + (t < extra ? 1 : 0); k++) tierOf.push(t);
+  }
+  const splitHead = document.createElement('div');
+  splitHead.className = 'results-title';
+  splitHead.innerHTML = '<span>Tier Split</span>';
+  const hideLbl = document.createElement('label');
+  hideLbl.style.cssText = 'font-family:Inter,sans-serif;font-size:0.75rem;color:var(--muted);display:flex;align-items:center;gap:0.35rem;cursor:pointer';
+  const hideCb = document.createElement('input'); hideCb.type = 'checkbox'; hideCb.checked = hideScores;
+  hideCb.style.accentColor = 'var(--accent)';
+  hideCb.addEventListener('change', () => { hideScores = hideCb.checked; onViewChange(view); });
+  hideLbl.appendChild(hideCb); hideLbl.appendChild(document.createTextNode('Hide scores (player view)'));
+  splitHead.appendChild(hideLbl);
+  el.appendChild(splitHead);
+
+  const wrap = document.createElement('div');
+  wrap.className = 'results-grid';
+  wrap.style.gridTemplateColumns = 'repeat(auto-fill, minmax(210px, 1fr))';
+  wrap.style.marginBottom = '1.5rem';
+  for (let t = 0; t < tiers; t++) {
+    let members = scored.filter((_, i) => tierOf[i] === t);
+    if (hideScores) members = [...members].sort((a, b) => a.hero.toLowerCase().localeCompare(b.hero.toLowerCase()));
+    const box = document.createElement('div');
+    box.className = 'grid-card' + (t === 0 ? ' first' : '');
+    box.style.alignItems = 'stretch'; box.style.textAlign = 'left';
+    const head = document.createElement('div'); head.className = 'tier-box-head';
+    const h = document.createElement('div'); h.className = 'section-label'; h.style.margin = '0';
+    h.textContent = `${labels[t]} (${members.length})`;
+    const cp = document.createElement('button'); cp.className = 'ghost sm'; cp.textContent = 'Copy names';
+    cp.style.padding = '0.2rem 0.5rem'; cp.style.fontSize = '0.72rem';
+    cp.title = 'One name per line (wheelofnames.com format)';
+    cp.addEventListener('click', () => copyText(members.map(m => m.hero).join('\n'), cp));
+    head.appendChild(h); head.appendChild(cp); box.appendChild(head);
+    members.forEach(m => {
+      const row = document.createElement('div'); row.className = 'tier-row';
+      const nm = document.createElement('span'); nm.textContent = m.hero; row.appendChild(nm);
+      if (!hideScores) {
+        const pt = document.createElement('span');
+        pt.style.cssText = `font-family:Cinzel,serif;color:${m.points>0?'#7de8b0':m.points<0?'#e87d7d':'var(--muted)'}`;
+        pt.textContent = (m.points > 0 ? '+' : '') + m.points.toFixed(2);
+        row.appendChild(pt);
+      }
+      box.appendChild(row);
+    });
+    wrap.appendChild(box);
+  }
+  el.appendChild(wrap);
+  if (hideScores) return;
+
+  // ── Scored ranking with List / Grid toggle
+  const titleRow = document.createElement('div');
+  titleRow.className = 'results-title';
+  const titleText = document.createElement('span');
+  titleText.textContent = 'Roster Ranking';
+  const toggle = document.createElement('div');
+  toggle.className = 'view-toggle';
+  ['list','grid'].forEach(v => {
+    const btn = document.createElement('button');
+    btn.className = 'view-btn' + (view === v ? ' active' : '');
+    btn.textContent = v === 'list' ? '☰ List' : '⊞ Grid';
+    btn.addEventListener('click', () => onViewChange(v));
+    toggle.appendChild(btn);
+  });
+  titleRow.appendChild(titleText); titleRow.appendChild(toggle);
+  el.appendChild(titleRow);
+
+  // Legend
+  const sorted = [...criteria].sort((a,b) => b.threshold - a.threshold);
+  const legend = document.createElement('div');
+  legend.className = 'legend';
+  sorted.forEach(c => {
+    const span = document.createElement('span');
+    span.innerHTML = `<span class="legend-dot" style="background:${c.color}"></span>≥${c.threshold}%` + (scoring === 'linear' ? '' : ` (${c.pts>0?'+':''}${c.pts} pt)`);
+    legend.appendChild(span);
+  });
+  const skipSpan = document.createElement('span');
+  skipSpan.innerHTML = `<span class="legend-dot" style="background:#252a38"></span>No data`;
+  legend.appendChild(skipSpan);
+  if (scoring === 'linear') {
+    const ls = getLinearSettings();
+    const note = document.createElement('span');
+    note.style.cssText = 'width:100%';
+    note.textContent = `Linear scoring: (win rate − 50%) / ${ls.ppp} pt per matchup, × games / (games + ${ls.prior}); ⚠ under ${ls.prior} games (counts less than half). Colours show the win-rate band only.`;
+    legend.appendChild(note);
+  }
+  el.appendChild(legend);
+
+
+  if (view === 'grid') {
+    const grid = document.createElement('div');
+    grid.className = 'results-grid';
+    scored.forEach((entry, i) => {
+      const card = document.createElement('div');
+      card.className = 'grid-card' + (i===0?' first':'');
+
+      const rank = document.createElement('div');
+      rank.className = 'grid-rank' + (i===0?' gold':'');
+      rank.textContent = `#${i+1}`;
+
+      const name = document.createElement('div');
+      name.className = 'grid-name';
+      name.textContent = entry.hero;
+
+      const scoreEl = document.createElement('div');
+      scoreEl.className = 'grid-score';
+      scoreEl.style.color = entry.points>0?'#7de8b0':entry.points<0?'#e87d7d':'var(--muted)';
+      scoreEl.textContent = (entry.points>0?'+':'') + entry.points.toFixed(2);
+
+      card.appendChild(rank); card.appendChild(name); card.appendChild(scoreEl);
+      grid.appendChild(card);
+    });
+    el.appendChild(grid);
+
+  } else {
+    scored.forEach((entry, i) => {
+      const card = document.createElement('div');
+      card.className = 'result-card' + (i===0?' first':'');
+
+      const rank = document.createElement('div');
+      rank.className = 'result-rank' + (i===0?' gold':'');
+      rank.textContent = i+1;
+
+      const body = document.createElement('div');
+      body.className = 'result-body';
+
+      const name = document.createElement('div');
+      name.className = 'result-name';
+      name.textContent = entry.hero;
+
+      const pills = document.createElement('div');
+      pills.className = 'result-pills';
+
+      entry.matchups.forEach(m => {
+        const pill = document.createElement('span');
+        // A matchup may be "confidence modified" (tier scoring) or "linear modified" (linear scoring weight < 0.5)
+        const modified = m.wr !== null && !!m.modified;
+
+        if (m.color && !modified) {
+          pill.className = 'pill';
+          pill.style.background = m.color;
+          pill.style.color = pillTextColor(m.color);
+          pill.textContent = `${m.opp} ${m.wr.toFixed(1)}%`;
+        } else if (m.color && modified) {
+          pill.className = 'pill pill-modified';
+          pill.style.background = '#2a2a35';
+          pill.style.color = '#9a9aaa';
+          pill.innerHTML = `<span class="conf-warn" title="Low sample size — confidence modifier applied">⚠</span>${m.opp} ${m.wr.toFixed(1)}%`;
+        } else {
+          pill.className = 'pill skip';
+          pill.textContent = `${m.opp} —`;
+        }
+
+        pill.title = m.wr !== null
+          ? `vs ${m.opp}: ${m.wr.toFixed(1)}% → ${m.pts>0?'+':''}${m.pts.toFixed(2)} pt${m.games!==null?' ['+m.games+' games]':''}${modified?' ⚠ low confidence':''}`
+          : `vs ${m.opp}: no data`;
+        pills.appendChild(pill);
+      });
+
+      body.appendChild(name); body.appendChild(pills);
+
+      const scoreEl = document.createElement('div');
+      scoreEl.className = 'result-score ' + (entry.points>0?'pos':entry.points<0?'neg':'zer');
+      scoreEl.textContent = (entry.points>0?'+':'') + entry.points.toFixed(2);
+
+      card.appendChild(rank); card.appendChild(body); card.appendChild(scoreEl);
+      el.appendChild(card);
+    });
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// MATCHUPS TAB — custom matchups (exe MatchupsTab)
+// ══════════════════════════════════════════════════════
+function fmtNum(x) { return (Math.round(x * 100) / 100).toString(); }
+function describeWR(r) { return r ? `${fmtNum(r.wr)}% over ${r.games === null || r.games === undefined ? '?' : r.games.toLocaleString()} games` : 'no data'; }
+function escapeHtml(t) { return String(t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function saveCustom() { try { localStorage.setItem('umds.customMatchups', JSON.stringify(customMatchups)); } catch (e) {} }
+
+// The two typed names, matched to a known hero where possible
+function cmNames() {
+  const match = v => { v = v.trim(); return heroList.find(h => h.toLowerCase() === v.toLowerCase()) || v; };
+  return [match(document.getElementById('cmA').value), match(document.getElementById('cmB').value)];
+}
+
+function cmLookUp(fill = true) {
+  const [a, b] = cmNames();
+  if (!a || !b) { showMsg('cmMsg', 'error', 'Type both heroes.'); return; }
+  clearMsg('cmMsg');
+  const loaded = csvWR(a, b), custom = customWR(a, b);
+  document.getElementById('cmInfo').textContent = `Loaded data: ${describeWR(loaded)}` + (custom ? `   ·   Custom: ${describeWR(custom)}` : '');
+  const src = custom || loaded;
+  if (fill && src) {
+    document.getElementById('cmWR').value = fmtNum(src.wr);
+    document.getElementById('cmGames').value = src.games ?? '';
+  }
+}
+
+function cmSave() {
+  const [a, b] = cmNames();
+  if (!a || !b) { showMsg('cmMsg', 'error', 'Type both heroes.'); return; }
+  if (a.toLowerCase() === b.toLowerCase()) { showMsg('cmMsg', 'error', 'Pick two different heroes.'); return; }
+  const wr = parseFloat(document.getElementById('cmWR').value), games = parseInt(document.getElementById('cmGames').value);
+  if (isNaN(wr) || isNaN(games)) { showMsg('cmMsg', 'error', 'Win rate and games must be numbers.'); return; }
+  if (wr < 0 || wr > 100) { showMsg('cmMsg', 'error', 'Win rate must be between 0 and 100.'); return; }
+  if (games < 0) { showMsg('cmMsg', 'error', 'Games cannot be negative.'); return; }
+  const newHeroes = [a, b].filter(h => !heroList.includes(h));
+  delete customMatchups[b + '|||' + a];          // replaces any custom b vs a
+  customMatchups[a + '|||' + b] = { wr, games };
+  saveCustom(); rebuildHeroList(); renderCmList(); cmLookUp(false);
+  showMsg('cmMsg', 'success', escapeHtml(`Saved ${a} vs ${b}.` + (newHeroes.length ? ` New hero: ${newHeroes.join(', ')}.` : '') + ' Generate or score again to use it.'));
+}
+
+function cmRemove(key) {
+  delete customMatchups[key];
+  saveCustom(); rebuildHeroList(); renderCmList(); clearMsg('cmMsg');
+}
+
+function renderCmList() {
+  const keys = Object.keys(customMatchups);
+  document.getElementById('cmListTitle').textContent = `Custom matchups (${keys.length})`;
+  document.getElementById('cmRemoveAll').style.display = keys.length ? '' : 'none';
+  const list = document.getElementById('cmList');
+  list.innerHTML = '';
+  if (!keys.length) {
+    list.innerHTML = '<div style="font-size:0.85rem;color:var(--muted)">None yet — the loaded data is used as it is.</div>';
+    return;
+  }
+  keys.forEach(k => {
+    const [a, b] = k.split('|||'), c = customMatchups[k], loaded = csvWR(a, b);
+    const row = document.createElement('div'); row.className = 'cm-row';
+    const txt = document.createElement('div');
+    txt.innerHTML = `<strong style="font-weight:500">${escapeHtml(a)}</strong> vs <strong style="font-weight:500">${escapeHtml(b)}</strong>&nbsp;&nbsp; ${escapeHtml(describeWR(c))}`
+      + `<span style="color:var(--muted)">&nbsp;&nbsp;(loaded: ${escapeHtml(describeWR(loaded))})</span>`;
+    txt.style.cursor = 'pointer'; txt.title = 'Edit';
+    txt.addEventListener('click', () => { document.getElementById('cmA').value = a; document.getElementById('cmB').value = b; cmLookUp(); });
+    const x = document.createElement('button'); x.className = 'danger'; x.textContent = '✕';
+    x.addEventListener('click', () => cmRemove(k));
+    row.appendChild(txt); row.appendChild(x); list.appendChild(row);
+  });
+}
+
+makeAC('cmA', 'cmAAC', () => [], () => { if (document.getElementById('cmB').value.trim()) cmLookUp(); }, true);
+makeAC('cmB', 'cmBAC', () => [], () => { if (document.getElementById('cmA').value.trim()) cmLookUp(); }, true);
+document.getElementById('cmLookUp').addEventListener('click', () => cmLookUp());
+document.getElementById('cmSave').addEventListener('click', cmSave);
+document.getElementById('cmRemoveAll').addEventListener('click', () => { customMatchups = {}; saveCustom(); rebuildHeroList(); renderCmList(); clearMsg('cmMsg'); });
+rebuildHeroList();
+renderCmList();
+
+// ══════════════════════════════════════════════════════
+// DISTRIBUTION TAB — run generators many times, chart pick rates
+// (exe DistributionTab + DistributionChart)
+// ══════════════════════════════════════════════════════
+const genColor = id => SERIES_COLORS[GENERATORS.findIndex(g => g.id === id) % SERIES_COLORS.length];
+const genName = id => GENERATORS.find(g => g.id === id).name;
+const distSelected = new Set(GENERATORS.map(g => g.id));
+const distOpts = { sort: 'rate', sortGen: null, descending: true, mode: 'rate', scale: 'fit', limit: null };
+let distJob = null, distResult = null;
+const pct1 = x => (x * 100).toFixed(1) + '%';
+const spct1 = x => (x >= 0 ? '+' : '') + (x * 100).toFixed(1) + '%';
+
+function renderDistGens() {
+  const el = document.getElementById('distGens'); el.innerHTML = '';
+  GENERATORS.forEach(g => {
+    const b = document.createElement('button');
+    b.className = 'view-btn' + (distSelected.has(g.id) ? ' active' : '');
+    b.innerHTML = `<span class="gen-dot" style="background:${genColor(g.id)}"></span>${escapeHtml(g.name)}`;
+    b.addEventListener('click', () => { distSelected.has(g.id) ? distSelected.delete(g.id) : distSelected.add(g.id); renderDistGens(); });
+    el.appendChild(b);
+  });
+}
+
+function choiceGroup(id, options, key) {
+  const el = document.getElementById(id); el.innerHTML = '';
+  options.forEach(([val, label, dot]) => {
+    const b = document.createElement('button');
+    b.className = 'view-btn' + (distOpts[key] === val ? ' active' : '');
+    b.innerHTML = (dot ? `<span class="gen-dot" style="background:${dot}"></span>` : '') + escapeHtml(label);
+    b.addEventListener('click', () => { distOpts[key] = val; renderDistView(); });
+    el.appendChild(b);
+  });
+}
+
+function distRun() {
+  if (!Object.keys(matchupData).length) { showMsg('distMsg', 'error', 'Load matchup data first (Data tab).'); return; }
+  const gens = GENERATORS.filter(g => distSelected.has(g.id));
+  if (!gens.length) { showMsg('distMsg', 'error', 'Select at least one generator.'); return; }
+  const runs = parseInt(document.getElementById('distRuns').value);
+  if (!(runs >= 1)) { showMsg('distMsg', 'error', 'Rosters per generator must be at least 1.'); return; }
+  const count = parseInt(document.getElementById('distCount').value);
+  if (count > 200) { showMsg('distMsg', 'error', 'Maximum is 200 heroes per roster.'); return; }
+  const ctx = prepareContext(count);
+  if (typeof ctx === 'string') { showMsg('distMsg', 'error', ctx); return; }
+  clearMsg('distMsg');
+  const n = ctx.n;
+  distJob = {
+    ctx, gens, target: runs, gi: 0, started: performance.now(), stopped: false,
+    counts: Object.fromEntries(gens.map(g => [g.id, new Int32Array(n)])),
+    runs: Object.fromEntries(gens.map(g => [g.id, 0])),
+  };
+  document.getElementById('distRun').disabled = true;
+  document.getElementById('distStop').disabled = false;
+  setTimeout(distStep, 0);
+}
+
+function distStep() {
+  const job = distJob;
+  if (!job) return;
+  if (job.stopped) return distFinish();
+  const g = job.gens[job.gi], counts = job.counts[g.id], ctx = job.ctx, m = ctx.m;
+  const t0 = performance.now();
+  while (job.runs[g.id] < job.target && performance.now() - t0 < 40) {
+    const r = g.pick(ctx);
+    if (r) for (let k = 0; k < r.length; k++) if (r[k] >= m) counts[r[k]]++;
+    job.runs[g.id]++;
+  }
+  document.getElementById('distStatus').textContent = `Running ${g.name}: ${job.runs[g.id].toLocaleString()} / ${job.target.toLocaleString()} rosters…`;
+  if (job.runs[g.id] >= job.target) job.gi++;
+  if (job.gi >= job.gens.length) return distFinish();
+  setTimeout(distStep, 0);
+}
+
+function distStop() { if (distJob) distJob.stopped = true; }
+
+// Per hero, against the other heroes in this pool: average Komarica's (linear)
+// points per matchup with data, and total games played.
+function heroFacts(ctx) {
+  const P = ctx.points('linear'), n = ctx.n, facts = [];
+  for (let i = 0; i < n; i++) {
+    let sum = 0, cnt = 0, games = 0;
+    for (let j = 0; j < n; j++) {
+      if (i === j || isNaN(ctx.wr[i*n+j])) continue;
+      sum += P[i*n+j]; cnt++;
+      if (!isNaN(ctx.gm[i*n+j])) games += ctx.gm[i*n+j];
+    }
+    facts.push({ strength: cnt ? sum / cnt : 0, games });
+  }
+  return facts;
+}
+
+function distFinish() {
+  const job = distJob; distJob = null;
+  document.getElementById('distRun').disabled = false;
+  document.getElementById('distStop').disabled = true;
+  const ctx = job.ctx, secs = (performance.now() - job.started) / 1000;
+  const gens = job.gens.filter(g => job.runs[g.id] > 0).map(g => g.id);
+  document.getElementById('distStatus').textContent = `${job.stopped ? 'Stopped' : 'Done'} after ${secs.toFixed(1)} s — `
+    + job.gens.map(g => `${g.name}: ${job.runs[g.id].toLocaleString()} rosters`).join(', ');
+  if (!gens.length) return;
+  const facts = heroFacts(ctx);
+  const heroes = [];
+  for (let i = ctx.m; i < ctx.n; i++) {
+    const h = { name: ctx.heroes[i], strength: facts[i].strength, games: facts[i].games, counts: {}, rate: {} };
+    gens.forEach(id => { h.counts[id] = job.counts[id][i]; h.rate[id] = job.counts[id][i] / job.runs[id]; });
+    heroes.push(h);
+  }
+  distResult = { generators: gens, heroes, uniform: ctx.slots / ctx.fillPool.length, runs: job.runs, mandatory: ctx.m };
+  if (!gens.includes(distOpts.sortGen)) distOpts.sortGen = gens[0];
+  renderDistStats();
+  renderDistView();
+}
+
+function renderDistStats() {
+  const R = distResult, el = document.getElementById('distStats');
+  const rows = R.generators.map(id => {
+    const rates = R.heroes.map(h => h.rate[id]);
+    const mean = rates.reduce((a, b) => a + b, 0) / rates.length;
+    const sd = Math.sqrt(rates.reduce((a, b) => a + (b - mean) ** 2, 0) / rates.length);
+    const lo = Math.min(...rates), hi = Math.max(...rates);
+    const who = v => R.heroes.filter(h => h.rate[id] === v).map(h => h.name);
+    const names = v => { const w = who(v); return escapeHtml(w.slice(0, 2).join(', ') + (w.length > 2 ? ` +${w.length - 2}` : '')); };
+    return `<tr><td><span class="gen-dot" style="background:${genColor(id)}"></span>${escapeHtml(genName(id))}</td>
+      <td>${R.runs[id].toLocaleString()}</td><td>${rates.filter(r => r === 0).length}</td>
+      <td>${pct1(lo)} <span style="color:var(--muted)">${names(lo)}</span></td>
+      <td>${pct1(hi)} <span style="color:var(--muted)">${names(hi)}</span></td><td>${pct1(sd)}</td></tr>`;
+  }).join('');
+  el.innerHTML = `<div style="overflow-x:auto"><table class="stats-table"><tr><th>Generator</th><th>Rosters</th><th>Never picked</th><th>Least picked</th><th>Most picked</th><th>Std dev of pick rate</th></tr>${rows}</table></div>
+    <p style="font-size:0.8rem;color:var(--muted);margin-bottom:1rem">Uniform pick rate would be ${pct1(R.uniform)} per hero${R.mandatory ? ' (mandatory heroes are always picked and left out of these numbers)' : ''}.</p>`;
+}
+
+// A round tick step (1, 2, 2.5 or 5 × 10^k) giving about `target` ticks over span
+function niceStep(span, target = 5) {
+  const raw = span / target, mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  for (const f of [1, 2, 2.5, 5, 10]) if (f * mag >= raw - 1e-12) return f * mag;
+  return 10 * mag;
+}
+
+function orderedHeroes() {
+  const R = distResult, o = distOpts, gens = R.generators;
+  const key = {
+    rate: h => h.rate[o.sortGen],
+    strength: h => h.strength,
+    games: h => h.games,
+    disagree: h => { const r = gens.map(id => h.rate[id]); return Math.max(...r) - Math.min(...r); },
+  }[o.sort];
+  let list = [...R.heroes].sort((a, b) => a.name.localeCompare(b.name));
+  if (key) list.sort((a, b) => o.descending ? key(b) - key(a) : key(a) - key(b));
+  return o.limit ? list.slice(0, o.limit) : list;
+}
+
+function renderDistView() {
+  if (!distResult) return;
+  document.getElementById('distView').style.display = '';
+  const gens = distResult.generators;
+  choiceGroup('distSort', [['rate','Pick rate'],['name','Name'],['strength','Hero strength'],['games','Games played'],['disagree','Generators disagree']], 'sort');
+  document.getElementById('distSortGenWrap').style.display = distOpts.sort === 'rate' && gens.length > 1 ? '' : 'none';
+  choiceGroup('distSortGen', gens.map(id => [id, genName(id), genColor(id)]), 'sortGen');
+  choiceGroup('distOrder', [[true,'↓ High first'],[false,'↑ Low first']], 'descending');
+  choiceGroup('distMode', [['rate','Pick rate'],['diff','Vs uniform']], 'mode');
+  choiceGroup('distScale', [['fit','Fit to data'],['full','Full range']], 'scale');
+  choiceGroup('distRows', [[null,'All'],[10,'10'],[20,'20']], 'limit');
+  drawDistChart();
+}
+
+function drawDistChart() {
+  const R = distResult, o = distOpts, el = document.getElementById('distChart');
+  if (!R || document.getElementById('distView').style.display === 'none') return;
+  const heroes = orderedHeroes(), gens = R.generators, U = R.uniform;
+  const val = (h, id) => o.mode === 'diff' ? h.rate[id] - U : h.rate[id];
+  const vals = heroes.flatMap(h => gens.map(id => val(h, id)));
+  let lo, hi;
+  if (o.mode === 'rate') { lo = 0; hi = o.scale === 'full' ? 1 : Math.max(U, ...vals, 0.01); }
+  else if (o.scale === 'full') { lo = -U; hi = 1 - U; }
+  else { const m = Math.max(0.01, ...vals.map(Math.abs)); lo = -m; hi = m; }
+  const step = niceStep(hi - lo, 5);
+  if (!(o.mode === 'rate' && o.scale === 'full')) { hi = Math.ceil(hi / step - 1e-9) * step; if (lo < 0) lo = Math.floor(lo / step + 1e-9) * step; }
+  const tickLbl = v => { const d = step < 0.01 - 1e-9 ? 1 : 0; const t = (v * 100).toFixed(d) + '%'; return (o.mode === 'diff' && v > 1e-9 ? '+' : '') + t; };
+
+  const W = Math.max(320, el.clientWidth || 800);
+  const labelW = Math.min(190, Math.round(W * 0.34)), rightPad = 16, top = 26;
+  const barH = 8, gap = 2, rowPad = 8, rowH = gens.length * barH + (gens.length - 1) * gap + rowPad;
+  const plotW = W - labelW - rightPad, H = top + heroes.length * rowH + 6;
+  const X = v => labelW + (v - lo) / (hi - lo) * plotW;
+  let svg = `<svg width="${W}" height="${H}" style="display:block;font-family:Inter,sans-serif">`;
+  for (let v = lo; v <= hi + 1e-9; v += step) {
+    const x = X(v);
+    svg += `<line x1="${x}" y1="${top - 4}" x2="${x}" y2="${H}" stroke="#252a38"/>`;
+    svg += `<text x="${x}" y="${top - 10}" text-anchor="middle" font-size="10" style="fill:var(--muted)">${tickLbl(v)}</text>`;
+  }
+  heroes.forEach((h, r) => {
+    const y = top + r * rowH;
+    svg += `<rect class="dist-row" data-i="${r}" x="0" y="${y}" width="${W}" height="${rowH}" fill="transparent"/>`;
+    svg += `<text x="${labelW - 8}" y="${y + rowH / 2 + 4}" text-anchor="end" font-size="11" style="fill:var(--text);pointer-events:none">${escapeHtml(h.name.length > 26 ? h.name.slice(0, 25) + '…' : h.name)}</text>`;
+    gens.forEach((id, k) => {
+      const v = val(h, id), x0 = X(Math.max(lo, Math.min(0, v))), x1 = X(Math.min(hi, Math.max(0, v)));
+      svg += `<rect x="${x0}" y="${y + rowPad / 2 + k * (barH + gap)}" width="${Math.max(1, x1 - x0)}" height="${barH}" rx="1.5" fill="${genColor(id)}" style="pointer-events:none"/>`;
+    });
+  });
+  const ux = X(o.mode === 'diff' ? 0 : U);
+  svg += `<line x1="${ux}" y1="${top - 4}" x2="${ux}" y2="${H}" stroke="#e2e4ea" stroke-dasharray="4 3" opacity="0.7" style="pointer-events:none"/>`;
+  svg += `<text x="${Math.min(ux + 4, W - 70)}" y="${top + 8}" font-size="10" style="fill:var(--text);pointer-events:none">uniform ${pct1(U)}</text>`;
+  svg += '</svg>';
+  el.innerHTML = `<div style="overflow-x:auto">${svg}</div>`;
+
+  const tip = document.getElementById('distTip');
+  el.querySelectorAll('.dist-row').forEach(rect => {
+    const h = heroes[+rect.dataset.i];
+    const show = e => {
+      el.querySelectorAll('.dist-row').forEach(x => x.setAttribute('fill', 'transparent'));
+      rect.setAttribute('fill', '#151924');
+      tip.textContent = `${h.name}   (strength ${(h.strength >= 0 ? '+' : '') + h.strength.toFixed(2)}, ${h.games.toLocaleString()} games vs this pool)\n`
+        + gens.map(id => `${genName(id)}: ${h.counts[id].toLocaleString()}/${R.runs[id].toLocaleString()} rosters (${pct1(h.rate[id])}, ${spct1(h.rate[id] - U)} vs uniform)`).join('\n');
+      tip.style.display = 'block';
+      const tw = tip.offsetWidth, th = tip.offsetHeight;
+      tip.style.left = Math.max(4, Math.min(e.clientX + 14, window.innerWidth - tw - 4)) + 'px';
+      tip.style.top = Math.max(4, Math.min(e.clientY + 14, window.innerHeight - th - 4)) + 'px';
+    };
+    rect.addEventListener('pointermove', show);
+    rect.addEventListener('click', show);
+    rect.addEventListener('pointerleave', () => { rect.setAttribute('fill', 'transparent'); tip.style.display = 'none'; });
+  });
+}
+
+let distResizeTimer = null;
+window.addEventListener('resize', () => { clearTimeout(distResizeTimer); distResizeTimer = setTimeout(drawDistChart, 120); });
+document.querySelector('.nav-tab[data-tab="distribution"]').addEventListener('click', () => setTimeout(drawDistChart, 0));
+document.getElementById('distRun').addEventListener('click', distRun);
+document.getElementById('distStop').addEventListener('click', distStop);
+renderDistGens();
+
+// ══════════════════════════════════════════════════════
+// CONFIDENCE SLIDER SYNC
+// ══════════════════════════════════════════════════════
+const coeffSlider = document.getElementById('confCoeffSlider');
+const coeffNumber = document.getElementById('confCoeff');
+const coeffLabel  = document.getElementById('confCoeffLabel');
+
+function syncCoeff(val) {
+  const v = Math.min(1, Math.max(0, parseFloat(val) || 0));
+  const rounded = Math.round(v * 100) / 100;
+  coeffSlider.value = rounded;
+  coeffNumber.value = rounded;
+  coeffLabel.textContent = rounded.toFixed(2);
+}
+
+coeffSlider.addEventListener('input', () => syncCoeff(coeffSlider.value));
+coeffNumber.addEventListener('input', () => syncCoeff(coeffNumber.value));
+
+// ══════════════════════════════════════════════════════
+// MESSAGES
+// ══════════════════════════════════════════════════════
+function showMsg(id, type, html) { document.getElementById(id).innerHTML = `<div class="msg ${type}">${html}</div>`; }
+function clearMsg(id) { document.getElementById(id).innerHTML = ''; }
+
+// ══ Auto-load: when the page is hosted with data/hero-matchups-unmatched.csv beside it
+// (the GitHub Pages build refreshes that file daily), load it on open. Uploading a
+// file still works and replaces it for this session.
+async function autoLoadData() {
+  try {
+    const res = await fetch('data/hero-matchups-unmatched.csv', { cache: 'no-cache' });
+    if (!res.ok) return;
+    const text = await res.text();
+    if (!/Hero A/.test(text.slice(0, 500))) return;
+    let updated = '';
+    try {
+      const meta = await (await fetch('data/meta.json', { cache: 'no-cache' })).json();
+      if (meta.updated) updated = new Date(meta.updated).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+    } catch (e) {}
+    if (Object.keys(matchupData).length) return;   // the user already uploaded a file meanwhile
+    parseCSV(text, 'Tabletop League' + (updated ? ` (updated ${updated})` : ''));
+    showMsg('autoDataMsg', 'info', `Matchup data loaded automatically from Tabletop League${updated ? ` — last refreshed ${escapeHtml(updated)}` : ''}. Upload a file below only if you want to use a different one.`);
+  } catch (e) { /* opened as a local file, or no published data: use upload */ }
+}
+autoLoadData();
+</script>
+</body>
+</html>

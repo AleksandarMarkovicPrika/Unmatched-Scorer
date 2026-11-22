@@ -1,0 +1,75 @@
+name: Refresh data and publish
+
+on:
+  schedule:
+    - cron: "17 4 * * *"      # every day at 04:17 UTC (05:17 Budapest in winter)
+  workflow_dispatch: {}        # "Run workflow" button on the Actions tab
+  push:
+    branches: [main]           # republish when you change the app
+
+permissions:
+  contents: write              # commit the refreshed CSV
+  pages: write                 # publish to GitHub Pages
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    outputs:
+      ok: ${{ steps.fetch.outcome }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Tabletop League matchups
+        id: fetch
+        continue-on-error: true   # a failed download still publishes the last good data
+        env:
+          TTL_API_KEY: ${{ secrets.TTL_API_KEY }}
+          TTL_CSV_URL: ${{ vars.TTL_CSV_URL }}
+        run: python3 scripts/fetch_matchups.py
+
+      - name: Commit new data
+        if: steps.fetch.outcome == 'success'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add data/
+          if git diff --cached --quiet; then echo "No data change."; else
+            git commit -m "Refresh Tabletop League matchup data"
+            git push
+          fi
+
+      - name: Build site
+        run: |
+          mkdir -p _site/data
+          cp index.html _site/
+          cp data/*.csv data/*.json _site/data/ 2>/dev/null || true
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: refresh
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+
+  report:
+    # Mark the run red (GitHub emails you) when the download failed, after the
+    # last good data has still been published.
+    needs: [refresh, deploy]
+    if: needs.refresh.outputs.ok == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "::error::Downloading from Tabletop League failed - open the 'refresh' job log for the reason. The app is still serving the last good data."
+          exit 1
